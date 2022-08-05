@@ -1,0 +1,74 @@
+{
+	"name": "@universal-stores/spring",
+	"camelCaseName": "universalStoresSpring",
+	"description": "A spring store is a special kind of store that performs a physics simulation to reach a set target. It can be used to perform animations and to make a UI feel more natural (e.g. in a drag&drop scenario).",
+	"version": "1.0.0",
+	"type": "module",
+	"types": "dist/index.d.ts",
+	"main": "dist/index.cjs",
+	"module": "dist/index.es.js",
+	"author": "Carlo Dell'Acqua",
+	"license": "MIT",
+	"keywords": [
+		"spring",
+		"ui",
+		"store",
+		"animation"
+	],
+	"repository": {
+		"url": "git+https://github.com/cdellacqua/spring-store.js"
+	},
+	"bugs": {
+		"url": "https://github.com/cdellacqua/spring-store.js/issues"
+	},
+	"homepage": "https://github.com/cdellacqua/spring-store.js",
+	"files": [
+		"dist/**/*"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.es.js",
+			"require": "./dist/index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"coverage": "c8 npm run test",
+		"test": "cross-env NODE_ENV=test mocha 'tests/**/*.ts'",
+		"dev:browser": "vite",
+		"dev:node": "nodemon",
+		"build": "vite build && tsc --project ./tsconfig.declarations.json",
+		"doc": "rimraf docs && typedoc --gitRevision main --readme none --plugin typedoc-plugin-markdown src/lib/index.ts",
+		"prepack": "npm run lint && npm run build && npm test && npm run doc",
+		"lint": "eslint --max-warnings 0 .",
+		"lint:fix": "eslint --fix .",
+		"prettier": "prettier --check .",
+		"prettier:fix": "prettier --write .",
+		"setup": "node --unhandled-rejections=strict setup.js"
+	},
+	"devDependencies": {
+		"@types/chai": "^4.3.1",
+		"@types/mocha": "^9.1.1",
+		"@types/node": "^18.0.0",
+		"@typescript-eslint/eslint-plugin": "^5.29.0",
+		"c8": "^7.11.3",
+		"chai": "^4.3.6",
+		"cross-env": "^7.0.3",
+		"eslint": "^8.18.0",
+		"eslint-config-prettier": "^8.5.0",
+		"eslint-plugin-prettier": "^4.0.0",
+		"mocha": "^10.0.0",
+		"nodemon": "^2.0.16",
+		"prettier": "^2.7.1",
+		"rimraf": "^3.0.2",
+		"ts-node": "^10.8.1",
+		"typedoc": "^0.23.10",
+		"typedoc-plugin-markdown": "^3.13.4",
+		"typescript": "^4.7.4",
+		"vite": "^2.9.12"
+	},
+	"dependencies": {
+		"@cdellacqua/signals": "^4.1.1",
+		"universal-stores": "^1.1.3"
+	}
+}
