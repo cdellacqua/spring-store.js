@@ -38,7 +38,7 @@ Request animation frame implementation.
 
 #### Defined in
 
-src/lib/spring.ts:13
+[src/lib/spring.ts:13](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L13)
 
 ___
 
@@ -58,7 +58,7 @@ Configuration options for the spring
 
 #### Defined in
 
-src/lib/spring.ts:104
+[src/lib/spring.ts:104](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L104)
 
 ___
 
@@ -78,7 +78,7 @@ feel more natural (e.g. in a drag&drop scenario).
 
 #### Defined in
 
-src/lib/spring.ts:60
+[src/lib/spring.ts:60](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L60)
 
 ___
 
@@ -90,7 +90,7 @@ Configuration options for a spring store
 
 #### Defined in
 
-src/lib/spring.ts:127
+[src/lib/spring.ts:127](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L127)
 
 ___
 
@@ -102,7 +102,7 @@ All possible states of a spring store
 
 #### Defined in
 
-src/lib/spring.ts:48
+[src/lib/spring.ts:48](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L48)
 
 ## Functions
 
@@ -145,4 +145,4 @@ a spring store.
 
 #### Defined in
 
-src/lib/spring.ts:204
+[src/lib/spring.ts:204](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L204)

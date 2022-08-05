@@ -43,7 +43,7 @@ Error.constructor
 
 #### Defined in
 
-src/lib/spring.ts:32
+[src/lib/spring.ts:32](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L32)
 
 ## Properties
 

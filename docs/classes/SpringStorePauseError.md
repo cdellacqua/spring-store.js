@@ -42,7 +42,7 @@ Error.constructor
 
 #### Defined in
 
-src/lib/spring.ts:42
+[src/lib/spring.ts:42](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L42)
 
 ## Properties
 
