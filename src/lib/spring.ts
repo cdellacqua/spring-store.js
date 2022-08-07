@@ -207,8 +207,8 @@ export function makeSpringStore<
 	value: T extends number ? number : T,
 	config?: SpringStoreConfig,
 ): SpringStore<T extends number ? number : T> {
-	let damping = config?.damping ?? 0.2;
-	let stiffness = config?.stiffness ?? 0.05;
+	let damping = config?.damping ?? 0.3;
+	let stiffness = config?.stiffness ?? 0.02;
 	let precision = config?.precision ?? 0.1;
 
 	const dValue = (
