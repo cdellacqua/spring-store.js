@@ -2,7 +2,7 @@
 	"name": "@universal-stores/spring",
 	"camelCaseName": "universalStoresSpring",
 	"description": "A spring store is a special kind of store that performs a physics simulation to reach a set target. It can be used to perform animations and to make a UI feel more natural (e.g. in a drag&drop scenario).",
-	"version": "1.0.1",
+	"version": "2.0.0",
 	"type": "module",
 	"types": "dist/index.d.ts",
 	"main": "dist/index.cjs",
