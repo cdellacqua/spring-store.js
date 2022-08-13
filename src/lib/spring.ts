@@ -59,24 +59,58 @@ export type SpringStoreState =
  */
 export type SpringStore<T> = ReadonlyStore<T> & {
 	/**
-	 * A value between 0 and 1.
+	 * Return the current stiffness.
+	 *
+	 * The stiffness is a value between 0 and 1.
 	 * * 0 means that the spring does not express any force;
 	 * * 1 means that the spring express maximum force.
 	 */
-	stiffness: number;
+	stiffness(): number;
 	/**
-	 * A value between 0 and 1.
+	 * Set a new stiffness value. If the physics simulation is
+	 * running, the new value will be used immediately.
+	 *
+	 * The stiffness is a value between 0 and 1.
+	 * * 0 means that the spring does not express any force;
+	 * * 1 means that the spring express maximum force.
+	 */
+	stiffness(newStiffness: number): number;
+	/**
+	 * Return the current damping.
+	 *
+	 * The damping is a value between 0 and 1.
 	 * * 0 means that the spring preserve all its momentum and won't settle (i.e. maximum bounciness);
 	 * * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness).
 	 */
-	damping: number;
+	damping(): number;
 	/**
-	 * A threshold used to determine if the simulation can stop.
+	 * Set a new damping value. If the physics simulation is
+	 * running, the new value will be used immediately.
+	 *
+	 * The damping is a value between 0 and 1.
+	 * * 0 means that the spring preserve all its momentum and won't settle (i.e. maximum bounciness);
+	 * * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness).
+	 */
+	damping(newDamping: number): number;
+	/**
+	 * Return the current precision.
+	 *
+	 * The precision is a threshold used to determine if the simulation can stop.
 	 * This threshold is applied to both the velocity and value of the spring. If no value in both
 	 * objects is greater that the precision, the simulation stops and the spring value is set to the
 	 * current target.
 	 */
-	precision: number;
+	precision(): number;
+	/**
+	 * Set a new precision value. If the physics simulation is
+	 * running, the new value will be used immediately.
+	 *
+	 * The precision is a threshold used to determine if the simulation can stop.
+	 * This threshold is applied to both the velocity and value of the spring. If no value in both
+	 * objects is greater that the precision, the simulation stops and the spring value is set to the
+	 * current target.
+	 */
+	precision(newPrecision: number): number;
 	/** A store containing the current state of the spring. */
 	state$: ReadonlyStore<SpringStoreState>;
 	/** A store containing the velocity of the spring, expressed using the same shape as the spring value. */
@@ -356,7 +390,7 @@ export function makeSpringStore<
 	}
 	const maxDt = config?.maxDt || 0.5;
 	async function follow() {
-		if (state$.value !== 'idle') {
+		if (state$.content() !== 'idle') {
 			return;
 		}
 		try {
@@ -421,24 +455,32 @@ export function makeSpringStore<
 	}
 
 	return {
-		get precision() {
+		precision(newPrecision?: number) {
+			if (newPrecision !== undefined) {
+				precision = newPrecision;
+			}
 			return precision;
 		},
-		set precision(newPrecision) {
-			precision = newPrecision;
+		damping(newDamping?: number) {
+			if (newDamping !== undefined) {
+				damping = newDamping;
+			}
+			return damping;
 		},
-		get nOfSubscriptions() {
-			return current$.nOfSubscriptions;
+		stiffness(newStiffness?: number) {
+			if (newStiffness !== undefined) {
+				stiffness = newStiffness;
+			}
+			return stiffness;
 		},
-		get value() {
-			return current$.value;
-		},
+		nOfSubscriptions: current$.nOfSubscriptions,
+		content: current$.content,
 		speed$,
 		state$,
 		subscribe: current$.subscribe,
 		velocity$,
 		async pause() {
-			if (state$.value === 'running') {
+			if (state$.content() === 'running') {
 				state$.set('pausing');
 				pausePromise = new Promise<void>((res, rej) => {
 					resolvePausePromise = () => {
@@ -476,10 +518,9 @@ export function makeSpringStore<
 			resolveResumePromise();
 		},
 		async skip() {
+			const state = state$.content();
 			if (
-				(state$.value === 'running' ||
-					state$.value === 'pausing' ||
-					state$.value === 'paused') &&
+				(state === 'running' || state === 'pausing' || state === 'paused') &&
 				idlePromise
 			) {
 				state$.set('skipping');
@@ -491,18 +532,6 @@ export function makeSpringStore<
 			}
 		},
 		target$,
-		get damping() {
-			return damping;
-		},
-		set damping(newDamping) {
-			damping = newDamping;
-		},
-		get stiffness() {
-			return stiffness;
-		},
-		set stiffness(newStiffness) {
-			stiffness = newStiffness;
-		},
 		async idle() {
 			await idlePromise;
 		},

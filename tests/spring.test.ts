@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 import {
 	makeSpringStore,
+	SpringStore,
 	SpringStoreSkipError,
 	SpringStoreState,
 } from '../src/lib';
@@ -21,20 +22,20 @@ describe('spring store', () => {
 		const array = [43, 21, 5];
 		const object = {x: 543, y: 23, z: 43};
 		const springFromNumber$ = makeSpringStore(number);
-		expect(springFromNumber$.value).to.eqls(number);
-		expect(springFromNumber$.target$.value).to.eqls(number);
-		expect(springFromNumber$.speed$.value).to.eqls(0);
-		expect(springFromNumber$.velocity$.value).to.eqls(0);
+		expect(springFromNumber$.content()).to.eqls(number);
+		expect(springFromNumber$.target$.content()).to.eqls(number);
+		expect(springFromNumber$.speed$.content()).to.eqls(0);
+		expect(springFromNumber$.velocity$.content()).to.eqls(0);
 		const springFromArray$ = makeSpringStore(array);
-		expect(springFromArray$.value).to.eqls(array);
-		expect(springFromArray$.target$.value).to.eqls(array);
-		expect(springFromArray$.speed$.value).to.eqls(0);
-		expect(springFromArray$.velocity$.value).to.eqls([0, 0, 0]);
+		expect(springFromArray$.content()).to.eqls(array);
+		expect(springFromArray$.target$.content()).to.eqls(array);
+		expect(springFromArray$.speed$.content()).to.eqls(0);
+		expect(springFromArray$.velocity$.content()).to.eqls([0, 0, 0]);
 		const springFromObject$ = makeSpringStore(object);
-		expect(springFromObject$.value).to.eqls(object);
-		expect(springFromObject$.target$.value).to.eqls(object);
-		expect(springFromObject$.speed$.value).to.eqls(0);
-		expect(springFromObject$.velocity$.value).to.eqls({x: 0, y: 0, z: 0});
+		expect(springFromObject$.content()).to.eqls(object);
+		expect(springFromObject$.target$.content()).to.eqls(object);
+		expect(springFromObject$.speed$.content()).to.eqls(0);
+		expect(springFromObject$.velocity$.content()).to.eqls({x: 0, y: 0, z: 0});
 	});
 	it('creates a spring changing the defaults', () => {
 		const spring$ = makeSpringStore(0, {
@@ -42,20 +43,20 @@ describe('spring store', () => {
 			precision: 10,
 			stiffness: 0.8,
 		});
-		expect(spring$.damping).to.eq(0.3);
-		expect(spring$.precision).to.eq(10);
-		expect(spring$.stiffness).to.eq(0.8);
+		expect(spring$.damping()).to.eq(0.3);
+		expect(spring$.precision()).to.eq(10);
+		expect(spring$.stiffness()).to.eq(0.8);
 	});
 	it('changes the spring settings after instantiation', () => {
 		const spring$ = makeSpringStore(0);
 
-		spring$.damping = 0.3;
-		spring$.precision = 10;
-		spring$.stiffness = 0.8;
+		spring$.damping(0.3);
+		spring$.precision(10);
+		spring$.stiffness(0.8);
 
-		expect(spring$.damping).to.eq(0.3);
-		expect(spring$.precision).to.eq(10);
-		expect(spring$.stiffness).to.eq(0.8);
+		expect(spring$.damping()).to.eq(0.3);
+		expect(spring$.precision()).to.eq(10);
+		expect(spring$.stiffness()).to.eq(0.8);
 	});
 	it('awaits the simulation state to become idle', async () => {
 		const number = 13;
@@ -75,26 +76,26 @@ describe('spring store', () => {
 			springFromArray$.idle(),
 			springFromObject$.idle(),
 		]);
-		expect(springFromNumber$.value).to.eqls(targetNumber);
-		expect(springFromArray$.value).to.eqls(targetArray);
-		expect(springFromObject$.value).to.eqls(targetObject);
+		expect(springFromNumber$.content()).to.eqls(targetNumber);
+		expect(springFromArray$.content()).to.eqls(targetArray);
+		expect(springFromObject$.content()).to.eqls(targetObject);
 	});
 	it('checks the number of active subscriptions to the spring', () => {
 		const spring$ = makeSpringStore(0);
-		expect(spring$.nOfSubscriptions).to.eq(0);
+		expect(spring$.nOfSubscriptions()).to.eq(0);
 		const unsubscribe = spring$.subscribe(() => undefined);
-		expect(spring$.nOfSubscriptions).to.eq(1);
+		expect(spring$.nOfSubscriptions()).to.eq(1);
 		unsubscribe();
-		expect(spring$.nOfSubscriptions).to.eq(0);
+		expect(spring$.nOfSubscriptions()).to.eq(0);
 	});
 	it('checks that the promise returned by idle() resolves once the store has reached its target', async () => {
 		const spring$ = makeSpringStore(0);
-		expect(spring$.value).to.eqls(0);
-		expect(spring$.target$.value).to.eqls(0);
+		expect(spring$.content()).to.eqls(0);
+		expect(spring$.target$.content()).to.eqls(0);
 		spring$.target$.set(1);
-		expect(spring$.value).to.not.eqls(1);
+		expect(spring$.content()).to.not.eqls(1);
 		await spring$.idle();
-		expect(spring$.value).to.eqls(1);
+		expect(spring$.content()).to.eqls(1);
 	});
 	it('shows that the store will take the default requestAnimationFrame implementation if available in the global context', async () => {
 		let called = false;
@@ -180,12 +181,12 @@ describe('spring store', () => {
 				spring$
 					.pause()
 					.then(() => {
-						expect(spring$.value).to.not.eqls(1);
+						expect(spring$.content()).to.not.eqls(1);
 						spring$.resume();
 						return spring$.idle();
 					})
 					.then(() => {
-						expect(spring$.value).to.eqls(1);
+						expect(spring$.content()).to.eqls(1);
 						expect(states).to.eqls([
 							'idle',
 							'running',
@@ -217,7 +218,7 @@ describe('spring store', () => {
 				spring$
 					.pause()
 					.then(() => {
-						expect(spring$.value).to.not.eqls(1);
+						expect(spring$.content()).to.not.eqls(1);
 						spring$.resume();
 						spring$.resume();
 						spring$.resume();
@@ -226,7 +227,7 @@ describe('spring store', () => {
 						return spring$.idle();
 					})
 					.then(() => {
-						expect(spring$.value).to.eqls(1);
+						expect(spring$.content()).to.eqls(1);
 						expect(states).to.eqls([
 							'idle',
 							'running',
@@ -249,7 +250,7 @@ describe('spring store', () => {
 		spring$.state$.subscribe((state) => states.push(state));
 		spring$.target$.set(1);
 		await spring$.skip();
-		expect(spring$.value).to.eqls(1);
+		expect(spring$.content()).to.eqls(1);
 		expect(allValues.length).to.be.greaterThan(0);
 		for (let i = 0; i < allValues.length - 1; i++) {
 			expect(
@@ -264,7 +265,7 @@ describe('spring store', () => {
 		spring$.state$.subscribe((state) => states.push(state));
 		spring$.target$.set(1);
 		await Promise.race([spring$.skip(), spring$.pause()]);
-		expect(spring$.value).to.eqls(1);
+		expect(spring$.content()).to.eqls(1);
 		expect(states).to.eqls(['idle', 'running', 'skipping', 'idle']);
 	});
 	it('calls pause() and skip() almost at the same time', async () => {
@@ -277,7 +278,7 @@ describe('spring store', () => {
 			spring$.pause().catch((err) => (pauseErr = err)),
 			spring$.skip(),
 		]);
-		expect(spring$.value).to.eqls(1);
+		expect(spring$.content()).to.eqls(1);
 		expect(states).to.eqls(['idle', 'running', 'pausing', 'skipping', 'idle']);
 		expect(pauseErr).to.be.instanceOf(SpringStoreSkipError);
 	});
@@ -288,7 +289,7 @@ describe('spring store', () => {
 		spring$.target$.set(1);
 		await spring$.pause();
 		await spring$.skip();
-		expect(spring$.value).to.eqls(1);
+		expect(spring$.content()).to.eqls(1);
 		expect(states).to.eqls([
 			'idle',
 			'running',
@@ -301,11 +302,11 @@ describe('spring store', () => {
 	it('changes the target while the simulation is still running', async () => {
 		const spring$ = makeSpringStore(0);
 		spring$.target$.set(1);
-		expect(spring$.state$.value).to.eq('running');
+		expect(spring$.state$.content()).to.eq('running');
 		spring$.target$.set(2);
-		expect(spring$.state$.value).to.eq('running');
+		expect(spring$.state$.content()).to.eq('running');
 		await spring$.idle();
-		expect(spring$.value).to.eq(2);
+		expect(spring$.content()).to.eq(2);
 	});
 	it('tests maxDt', async () => {
 		let alter = 1;
@@ -350,5 +351,28 @@ describe('spring store', () => {
 		await spring$.idle();
 		expect(allValues.some((v) => v >= 0 && v <= 1)).to.be.true;
 		expect(allValues.length).to.be.lessThan(10);
+	});
+	it('tests that the precision can be changed after spreading a spring object', async () => {
+		function makeCustomSpring(): SpringStore<number> {
+			const spring$ = makeSpringStore(0);
+			return {
+				...spring$,
+			};
+		}
+		const allValues: number[] = [];
+		const customSpring$ = makeCustomSpring();
+		customSpring$.subscribe((v) => allValues.push(v));
+		customSpring$.target$.set(1);
+		await customSpring$.idle();
+		const nOfValuesWithDefaultPrecision = allValues.length;
+		expect(customSpring$.content()).to.eq(1);
+		customSpring$.target$.set(0);
+		await customSpring$.idle();
+		allValues.splice(0, allValues.length);
+		customSpring$.precision(10);
+		customSpring$.target$.set(1);
+		await customSpring$.idle();
+		expect(customSpring$.content()).to.eq(1);
+		expect(allValues.length).to.be.lessThan(nOfValuesWithDefaultPrecision);
 	});
 });

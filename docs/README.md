@@ -58,13 +58,13 @@ Configuration options for the spring
 
 #### Defined in
 
-[src/lib/spring.ts:104](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L104)
+[src/lib/spring.ts:137](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L137)
 
 ___
 
 ### SpringStore
 
-Ƭ **SpringStore**<`T`\>: `ReadonlyStore`<`T`\> & { `damping`: `number` ; `precision`: `number` ; `speed$`: `ReadonlyStore`<`number`\> ; `state$`: `ReadonlyStore`<[`SpringStoreState`](README.md#springstorestate)\> ; `stiffness`: `number` ; `target$`: `Store`<`T`\> ; `velocity$`: `ReadonlyStore`<`T`\> ; `idle`: () => `Promise`<`void`\> ; `pause`: () => `Promise`<`void`\> ; `resume`: () => `void` ; `skip`: () => `Promise`<`void`\>  }
+Ƭ **SpringStore**<`T`\>: `ReadonlyStore`<`T`\> & { `speed$`: `ReadonlyStore`<`number`\> ; `state$`: `ReadonlyStore`<[`SpringStoreState`](README.md#springstorestate)\> ; `target$`: `Store`<`T`\> ; `velocity$`: `ReadonlyStore`<`T`\> ; `damping`: () => `number`(`newDamping`: `number`) => `number` ; `idle`: () => `Promise`<`void`\> ; `pause`: () => `Promise`<`void`\> ; `precision`: () => `number`(`newPrecision`: `number`) => `number` ; `resume`: () => `void` ; `skip`: () => `Promise`<`void`\> ; `stiffness`: () => `number`(`newStiffness`: `number`) => `number`  }
 
 A spring store is a special kind of store that performs a physics simulation
 to reach a set target. It can be used to perform animations and to make a UI
@@ -90,7 +90,7 @@ Configuration options for a spring store
 
 #### Defined in
 
-[src/lib/spring.ts:127](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L127)
+[src/lib/spring.ts:160](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L160)
 
 ___
 
@@ -145,4 +145,4 @@ a spring store.
 
 #### Defined in
 
-[src/lib/spring.ts:204](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L204)
+[src/lib/spring.ts:237](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L237)

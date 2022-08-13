@@ -4,6 +4,10 @@ A spring store is a special kind of store that performs a physics simulation
 to reach a set target. It can be used to perform animations and to make a UI
 feel more natural (e.g. in a drag&drop scenario).
 
+The physics simulation
+is performed using `requestAnimationFrame` if available, otherwise `setTimeout` is
+used as a substitute, simulating a 60Hz screen.
+
 This package is based on [universal-stores](https://www.npmjs.com/package/universal-stores),
 which are observable containers of values.
 
@@ -29,9 +33,9 @@ As an example:
 import {makeSpringStore} from '@universal-stores/spring';
 
 const spring$ = makeSpringStore(0);
-spring$.subscribe(console.log);
+spring$.subscribe(console.log); // immediately prints 0
 // Calling `.set(...)` will cause the above subscription
-// to emit values until the target is reached.
+// to emit values ranging from 0 to 1 until the target is reached.
 spring$.target$.set(1);
 ```
 
@@ -61,4 +65,29 @@ const bouncySpring$ = makeSpringStore(42, {
 	damping: 0.02,
 	stiffness: 0.3,
 });
+```
+
+## Customizing a spring
+
+If you want to add custom methods to a spring and encapsulate some behaviour behind
+a method, you can use the object spread syntax as shown in the following example:
+
+```ts
+function makeCustomSpring(): SpringStore<number> & {home(): Promise<void>} {
+	const spring$ = makeSpringStore(0);
+	return {
+		...spring$,
+		home() {
+			spring$.target$.set(0);
+			return spring$.idle();
+		},
+	};
+}
+
+const customSpring$ = makeCustomSpring();
+customSpring$.target$.set(1);
+await customSpring$.idle();
+console.log(customSpring$.content()); // 1
+await customSpring$.home();
+console.log(customSpring$.content()); // 0
 ```
