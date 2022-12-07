@@ -52,13 +52,13 @@ Configuration options for the spring
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
-| `damping` | `number` | A value between 0 and 1. * 0 means that the spring preserves all its momentum and won't settle (i.e. maximum bounciness); * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness). |
+| `damping` | `number` | The damping is used to compute how much friction needs to be applied to slow down the spring. The friction is computed as `friction = velocity * damping`.  **`Default`**  30 |
 | `precision` | `number` | A threshold used to determine if the simulation can stop. This threshold is applied to both the velocity and the value of the spring. If no value in both objects is greater than the precision, the simulation stops and the spring value is set to the current target. |
-| `stiffness` | `number` | A value between 0 and 1. * 0 means that the spring does not express any force; * 1 means that the spring expresses maximum force. |
+| `stiffness` | `number` | The stiffness is used to compute the elastic force as per Hooke's law: `elastic_force = displacement * stiffness`.  **`Default`**  300 |
 
 #### Defined in
 
-[src/lib/spring.ts:137](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L137)
+[src/lib/spring.ts:134](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L134)
 
 ___
 
@@ -90,7 +90,7 @@ Configuration options for a spring store
 
 #### Defined in
 
-[src/lib/spring.ts:160](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L160)
+[src/lib/spring.ts:159](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L159)
 
 ___
 
@@ -145,4 +145,4 @@ a spring store.
 
 #### Defined in
 
-[src/lib/spring.ts:237](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L237)
+[src/lib/spring.ts:236](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L236)

@@ -27,8 +27,8 @@ const chain = [
 		makeSpringStore(
 			{left: 10, top: 10},
 			{
-				damping: (i / chainLength - 1) * 0.05 + 0.45,
-				stiffness: 0.09,
+				damping: (i / chainLength - 1) * 15 + 30,
+				stiffness: 300,
 				precision: 0.1,
 			},
 		),

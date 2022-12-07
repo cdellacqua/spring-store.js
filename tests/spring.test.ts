@@ -320,8 +320,8 @@ describe('spring store', () => {
 				cancel: (id) => clearTimeout(id as number),
 			},
 			maxDt: 1,
-			stiffness: 0.2,
-			damping: 0.1,
+			damping: 10,
+			stiffness: 300,
 		});
 		spring$.target$.set(1);
 		const allValues: number[] = [];
@@ -342,15 +342,15 @@ describe('spring store', () => {
 				cancel: (id) => clearTimeout(id as number),
 			},
 			maxDt: 1000,
-			stiffness: 0.2,
-			damping: 0.1,
+			damping: 100,
+			stiffness: 3000,
 		});
 		spring$.target$.set(1);
 		const allValues: number[] = [];
 		spring$.subscribe((current) => allValues.push(current));
 		await spring$.idle();
 		expect(allValues.some((v) => v >= 0 && v <= 1)).to.be.true;
-		expect(allValues.length).to.be.lessThan(10);
+		expect(allValues.length).to.be.lessThanOrEqual(10);
 	});
 	it('tests that the precision can be changed after spreading a spring object', async () => {
 		function makeCustomSpring(): SpringStore<number> {

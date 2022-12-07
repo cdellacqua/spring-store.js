@@ -62,8 +62,8 @@ by changing its bounciness and stiffness.
 import {makeSpringStore} from '@universal-stores/spring';
 
 const bouncySpring$ = makeSpringStore(42, {
-	damping: 0.02,
-	stiffness: 0.3,
+	damping: 10,
+	stiffness: 300,
 });
 ```
 

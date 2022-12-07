@@ -61,35 +61,31 @@ export type SpringStore<T> = ReadonlyStore<T> & {
 	/**
 	 * Return the current stiffness.
 	 *
-	 * The stiffness is a value between 0 and 1.
-	 * * 0 means that the spring does not express any force;
-	 * * 1 means that the spring express maximum force.
+	 * The stiffness is used to compute the elastic force as per Hooke's law:
+	 * `elastic_force = displacement * stiffness`.
 	 */
 	stiffness(): number;
 	/**
 	 * Set a new stiffness value. If the physics simulation is
 	 * running, the new value will be used immediately.
 	 *
-	 * The stiffness is a value between 0 and 1.
-	 * * 0 means that the spring does not express any force;
-	 * * 1 means that the spring express maximum force.
+	 * The stiffness is used to compute the elastic force as per Hooke's law:
+	 * `elastic_force = displacement * stiffness`.
 	 */
 	stiffness(newStiffness: number): number;
 	/**
 	 * Return the current damping.
 	 *
-	 * The damping is a value between 0 and 1.
-	 * * 0 means that the spring preserve all its momentum and won't settle (i.e. maximum bounciness);
-	 * * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness).
+	 * The damping is used to compute how much friction needs to be applied to slow down the spring.
+	 * The friction is computed as `friction = velocity * damping`.
 	 */
 	damping(): number;
 	/**
 	 * Set a new damping value. If the physics simulation is
 	 * running, the new value will be used immediately.
 	 *
-	 * The damping is a value between 0 and 1.
-	 * * 0 means that the spring preserve all its momentum and won't settle (i.e. maximum bounciness);
-	 * * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness).
+	 * The damping is used to compute how much friction needs to be applied to slow down the spring.
+	 * The friction is computed as `friction = velocity * damping`.
 	 */
 	damping(newDamping: number): number;
 	/**
@@ -137,15 +133,17 @@ export type SpringStore<T> = ReadonlyStore<T> & {
 /** Configuration options for the spring */
 export type SpringConfig = {
 	/**
-	 * A value between 0 and 1.
-	 * * 0 means that the spring does not express any force;
-	 * * 1 means that the spring expresses maximum force.
+	 * The stiffness is used to compute the elastic force as per Hooke's law:
+	 * `elastic_force = displacement * stiffness`.
+	 *
+	 * @default 300
 	 */
 	stiffness: number;
 	/**
-	 * A value between 0 and 1.
-	 * * 0 means that the spring preserves all its momentum and won't settle (i.e. maximum bounciness);
-	 * * 1 means that the spring loses all its momentum while reaching the target (i.e. no bounciness).
+	 * The damping is used to compute how much friction needs to be applied to slow down the spring.
+	 * The friction is computed as `friction = velocity * damping`.
+	 *
+	 * @default 30
 	 */
 	damping: number;
 	/**
@@ -170,7 +168,7 @@ export type SpringStoreConfig = {
 	 * The maximum allowed interval, expressed in seconds, between two consecutive animation frames.
 	 * The sampled interval will be capped to this value, keeping the simulation stable even
 	 * if the user changes tab or hides the browser window (therefore pausing the animation frame queue).
-	 * @default 0.5
+	 * @default 0.066666667
 	 */
 	maxDt?: number;
 } & Partial<SpringConfig>;
@@ -241,8 +239,8 @@ export function makeSpringStore<
 	value: T extends number ? number : T,
 	config?: SpringStoreConfig,
 ): SpringStore<T extends number ? number : T> {
-	let damping = config?.damping ?? 0.3;
-	let stiffness = config?.stiffness ?? 0.02;
+	let damping = config?.damping ?? 30;
+	let stiffness = config?.stiffness ?? 300;
 	let precision = config?.precision ?? 0.1;
 
 	const dValue = (
@@ -252,19 +250,17 @@ export function makeSpringStore<
 	) => {
 		// Hooke's law:
 		// F = -displacement * elastic constant
-		const elasticForce = scale(displacement, stiffness / dt, true);
-		// We are cheating a little bit here. The expected
-		// behavior is that a damping of 1 will remove all bounciness,
-		// therefore we use the velocity to deduce the appropriate friction.
+		const elasticForce = scale(displacement, stiffness, true);
+		// We are cheating a little bit here, by using a custom
+		// friction that's proportional to the current velocity:
 		const friction = scale(velocity, damping, true);
 		// F = m * a => a = F / m. Assuming m = 1 we get:
 		const acceleration = sub(elasticForce, friction, false);
-		// The following should be something like this:
-		// dSpace = (velocity + dAcceleration * dt) * dt
-		// ...but to achieve the damping effect we cheat again and use the entire
-		// acceleration. The result still looks like a spring, although
-		// it's a very rough approximation.
-		return scale(add(velocity, acceleration, false), dt, false);
+		return scale(
+			add(velocity, scale(acceleration, dt, false), false),
+			dt,
+			false,
+		);
 	};
 	type WidenedT = T extends number ? number : T;
 
@@ -371,14 +367,10 @@ export function makeSpringStore<
 		// Distance should be computed as current - previous, in the following line
 		// the operands are flipped for performance reasons (we are mutating previousValue),
 		// so we negate dt to flip the result sign.
-		velocity = scale(
-			sub(previousValue, currentValue, false),
-			-1 / (dt || 1 / 60),
-			false,
-		);
+		velocity = scale(sub(previousValue, currentValue, false), -1 / dt, false);
 
 		remainingDelta = sub(targetValue, currentValue, true);
-		const dv = dValue(remainingDelta, new Float32Array(velocity), dt || 1 / 60);
+		const dv = dValue(remainingDelta, new Float32Array(velocity), dt);
 
 		previousValue = currentValue;
 		currentValue = add(dv, currentValue, false);
@@ -388,7 +380,7 @@ export function makeSpringStore<
 		remainingDelta = valueToFloat32Array(allZeros);
 		currentValue = new Float32Array(targetValue);
 	}
-	const maxDt = config?.maxDt || 0.5;
+	const maxDt = config?.maxDt || 0.066666667;
 	async function follow() {
 		if (state$.content() !== 'idle') {
 			return;
@@ -409,7 +401,8 @@ export function makeSpringStore<
 					previousTime =
 						previousTime ?? (await waitAnimationFrame(internalAbort$));
 					const currentTime = await waitAnimationFrame(internalAbort$);
-					const dt = Math.min(maxDt, (currentTime - previousTime) / 1000);
+					const dt =
+						Math.min(maxDt, (currentTime - previousTime) / 1000) || 1 / 60;
 					previousTime = currentTime;
 
 					integrate(dt);

@@ -29,8 +29,8 @@ const star = [
 			i === 0
 				? {}
 				: {
-						damping: 0.2 * (1 + Math.random()),
-						stiffness: 0.019 * (1 + Math.random()),
+						damping: 30 * (1 + Math.random()),
+						stiffness: 300 * (1 + Math.random()),
 				  },
 		),
 	),
@@ -97,6 +97,14 @@ window.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
 	e.preventDefault();
 	star[0].target$.set({left: e.pageX, top: e.pageY});
+});
+
+window.addEventListener('touchmove', (e) => {
+	e.preventDefault();
+	star[0].target$.set({
+		left: e.changedTouches[0].clientX,
+		top: e.changedTouches[0].clientY,
+	});
 });
 
 window.addEventListener('keydown', (e) => {

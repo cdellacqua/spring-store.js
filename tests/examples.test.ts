@@ -22,8 +22,8 @@ describe('examples', () => {
 	});
 	it('readme 3', async () => {
 		const bouncySpring$ = makeSpringStore(42, {
-			damping: 0.09,
-			stiffness: 0.1,
+			damping: 10,
+			stiffness: 300,
 		});
 		bouncySpring$.target$.set(43);
 		const allValues: number[] = [];

@@ -2,8 +2,8 @@ import {makeDerivedStore} from 'universal-stores';
 import {makeSpringStore} from './lib';
 
 const spring$ = makeSpringStore(1, {
-	damping: 0.09,
-	stiffness: 0.01,
+	damping: 30,
+	stiffness: 300,
 });
 
 const all$ = makeDerivedStore(
