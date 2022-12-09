@@ -161,14 +161,25 @@ export type SpringStoreConfig = {
 	 * A custom requestAnimationFrame + cancelAnimationFrame implementation.
 	 * By default, the store will use requestAnimationFrame and cancelAnimationFrame
 	 * if available in the runtime. If these functions are not available, it will
-	 * default to using setTimeout and clearTimeout emulating a 60Hz screen.
+	 * default to using setTimeout and clearTimeout emulating a 60Hz display.
 	 */
 	requestAnimationFrameImplementation?: RAFImplementation;
 	/**
+	 * The time, expressed in seconds, between two consecutive simulation steps.
+	 * The sampled interval between two animation frames will be divided by dt, therefore making the physics engine
+	 * run multiple substeps or skip some steps
+	 * to keep the simulation stable on displays with different FPS.
+	 *
+	 * @default 1/300 (~5 simulation steps each frame on a 60Hz display, ~2-3 on a 144Hz display).
+	 */
+	dt?: number;
+	/**
 	 * The maximum allowed interval, expressed in seconds, between two consecutive animation frames.
-	 * The sampled interval will be capped to this value, keeping the simulation stable even
-	 * if the user changes tab or hides the browser window (therefore pausing the animation frame queue).
-	 * @default 0.066666667
+	 * The sampled interval will be capped to this value, so that the simulation will not accumulate
+	 * too many pending steps in cases where the device
+	 * is temporary hung or the user changes tab or hides the browser window (therefore pausing the animation frame queue).
+	 *
+	 * @default 1/24 (24Hz)
 	 */
 	maxDt?: number;
 } & Partial<SpringConfig>;
@@ -243,25 +254,6 @@ export function makeSpringStore<
 	let stiffness = config?.stiffness ?? 300;
 	let precision = config?.precision ?? 0.1;
 
-	const dValue = (
-		displacement: Float32Array,
-		velocity: Float32Array,
-		dt: number,
-	) => {
-		// Hooke's law:
-		// F = -displacement * elastic constant
-		const elasticForce = scale(displacement, stiffness, true);
-		// We are cheating a little bit here, by using a custom
-		// friction that's proportional to the current velocity:
-		const friction = scale(velocity, damping, true);
-		// F = m * a => a = F / m. Assuming m = 1 we get:
-		const acceleration = sub(elasticForce, friction, false);
-		return scale(
-			add(velocity, scale(acceleration, dt, false), false),
-			dt,
-			false,
-		);
-	};
 	type WidenedT = T extends number ? number : T;
 
 	const waitAnimationFrame = makeWaitAnimationFrame(
@@ -333,6 +325,21 @@ export function makeSpringStore<
 		norm(valueToFloat32Array(v)),
 	);
 
+	type PhysicsState = {
+		velocity: Float32Array;
+		value: Float32Array;
+	};
+
+	let physicsState = {
+		velocity: valueToFloat32Array(allZeros),
+		value: valueToFloat32Array(value),
+	};
+
+	let interpolatedState = {
+		velocity: valueToFloat32Array(allZeros),
+		value: valueToFloat32Array(value),
+	};
+
 	const current$ = makeStore(value);
 	const target$ = makeStore(value);
 	let firstTarget = true;
@@ -356,31 +363,39 @@ export function makeSpringStore<
 		}
 	});
 
-	let previousValue: Float32Array = valueToFloat32Array(value);
-	let currentValue: Float32Array = new Float32Array(previousValue);
-	let remainingDelta: Float32Array = new Float32Array(currentValue.length).fill(
-		0,
-	);
-	let velocity: Float32Array = new Float32Array(currentValue.length).fill(0);
-	function integrate(dt: number) {
-		// v = distance / time
-		// Distance should be computed as current - previous, in the following line
-		// the operands are flipped for performance reasons (we are mutating previousValue),
-		// so we negate dt to flip the result sign.
-		velocity = scale(sub(previousValue, currentValue, false), -1 / dt, false);
+	function integrate(dt: number, state: PhysicsState): PhysicsState {
+		// Hooke's law:
+		// F = -displacement * elastic constant
+		const elasticForce = scale(remainingDelta, stiffness, true);
+		// We are cheating a little bit here, by using a custom
+		// friction that's proportional to the current velocity:
+		const friction = scale(state.velocity, damping, true);
+		// F = m * a => a = F / m. Assuming m = 1 we get:
+		const acceleration = sub(elasticForce, friction, false);
+		// dv = a * dt
+		const dVelocity = scale(acceleration, dt, false);
+		// v += dv
+		const velocity = add(dVelocity, state.velocity, false);
+		// dValue = v * dt
+		const dValue = scale(velocity, dt, true);
 
-		remainingDelta = sub(targetValue, currentValue, true);
-		const dv = dValue(remainingDelta, new Float32Array(velocity), dt);
-
-		previousValue = currentValue;
-		currentValue = add(dv, currentValue, false);
+		return {
+			// value += dv
+			value: add(dValue, state.value, false),
+			velocity,
+		};
 	}
-	function skipToTarget() {
-		velocity = valueToFloat32Array(allZeros);
+	function skipToTarget(): PhysicsState {
 		remainingDelta = valueToFloat32Array(allZeros);
-		currentValue = new Float32Array(targetValue);
+		return {
+			velocity: valueToFloat32Array(allZeros),
+			value: new Float32Array(targetValue),
+		};
 	}
-	const maxDt = config?.maxDt || 0.066666667;
+	let remainingDelta = valueToFloat32Array(allZeros);
+	const dt = config?.dt || 1 / 300;
+	const maxDt = config?.maxDt ?? 1 / 24;
+	let physicsTimeAccumulator = 0;
 	async function follow() {
 		if (state$.content() !== 'idle') {
 			return;
@@ -390,9 +405,10 @@ export function makeSpringStore<
 
 			let done = false;
 			let previousTime: number | undefined;
-			previousValue = new Float32Array(currentValue);
+
 			let wrappedErr: {err: unknown} | undefined;
 			internalAbort$.subscribe((err) => (wrappedErr = {err}));
+
 			while (!done) {
 				try {
 					if (wrappedErr) {
@@ -401,26 +417,58 @@ export function makeSpringStore<
 					previousTime =
 						previousTime ?? (await waitAnimationFrame(internalAbort$));
 					const currentTime = await waitAnimationFrame(internalAbort$);
-					const dt =
-						Math.min(maxDt, (currentTime - previousTime) / 1000) || 1 / 60;
+					const sampledDt = Math.min(
+						maxDt,
+						(currentTime - previousTime) / 1000 || dt,
+					);
 					previousTime = currentTime;
 
-					integrate(dt);
+					physicsTimeAccumulator += sampledDt;
+
+					let previousState = physicsState;
+					while (physicsTimeAccumulator > 0) {
+						// v = distance / time
+						// Distance should be computed as current - previous, in the following line
+						// the operands are flipped for performance reasons (we are mutating previousValue),
+						// so we negate dt to flip the result sign.
+						remainingDelta = sub(targetValue, physicsState.value, true);
+
+						previousState = physicsState;
+						physicsState = integrate(dt, previousState);
+
+						physicsTimeAccumulator -= dt;
+					}
+
+					const interpolationRatio = 1 + physicsTimeAccumulator / dt;
+					interpolatedState = {
+						value: add(
+							scale(physicsState.value, interpolationRatio, true),
+							scale(previousState.value, 1 - interpolationRatio, true),
+							false,
+						),
+						velocity: add(
+							scale(physicsState.velocity, interpolationRatio, true),
+							scale(previousState.velocity, 1 - interpolationRatio, true),
+							false,
+						),
+					};
 
 					if (
 						!(
 							remainingDelta.some((x) => Math.abs(x) >= precision) ||
-							velocity.some((x) => Math.abs(x) >= precision)
+							physicsState.velocity.some((x) => Math.abs(x) >= precision)
 						)
 					) {
-						skipToTarget();
+						physicsState = skipToTarget();
+						interpolatedState = physicsState;
 						done = true;
 					}
 				} catch {
 					const mostRecentError = wrappedErr?.err;
 					wrappedErr = undefined;
 					if (mostRecentError instanceof SpringStoreSkipError) {
-						skipToTarget();
+						physicsState = skipToTarget();
+						interpolatedState = physicsState;
 						done = true;
 					} else if (mostRecentError instanceof SpringStorePauseError) {
 						resolvePausePromise();
@@ -430,7 +478,8 @@ export function makeSpringStore<
 							state$.set('running');
 						} catch (resumeErr) {
 							if (resumeErr instanceof SpringStoreSkipError) {
-								skipToTarget();
+								physicsState = skipToTarget();
+								interpolatedState = physicsState;
 								done = true;
 								/* c8 ignore next */
 							} else throw resumeErr; // This shouldn't be possible as the reject callback is always called with a SpringStoreSkipError instance
@@ -439,8 +488,8 @@ export function makeSpringStore<
 					} else throw mostRecentError; // This shouldn't be possible as the wrappedErr comes from the internalAbort$ signal, which in turns only emits SpringStoreSkipError or SpringStorePauseError objects
 				}
 
-				current$.set(float32ArrayToValue(currentValue));
-				velocity$.set(float32ArrayToValue(velocity));
+				current$.set(float32ArrayToValue(interpolatedState.value));
+				velocity$.set(float32ArrayToValue(interpolatedState.velocity));
 			}
 		} finally {
 			state$.set('idle');

@@ -84,7 +84,7 @@ ___
 
 ### SpringStoreConfig
 
-Ƭ **SpringStoreConfig**: { `maxDt?`: `number` ; `requestAnimationFrameImplementation?`: [`RAFImplementation`](README.md#rafimplementation)  } & `Partial`<[`SpringConfig`](README.md#springconfig)\>
+Ƭ **SpringStoreConfig**: { `dt?`: `number` ; `maxDt?`: `number` ; `requestAnimationFrameImplementation?`: [`RAFImplementation`](README.md#rafimplementation)  } & `Partial`<[`SpringConfig`](README.md#springconfig)\>
 
 Configuration options for a spring store
 
@@ -145,4 +145,4 @@ a spring store.
 
 #### Defined in
 
-[src/lib/spring.ts:236](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L236)
+[src/lib/spring.ts:247](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L247)

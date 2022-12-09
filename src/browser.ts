@@ -89,23 +89,42 @@ star[0].state$.subscribe(
 	(state) => (stateDiv.textContent = `Head spring state: ${state}`),
 );
 
-window.addEventListener('mousedown', (e) => {
-	e.preventDefault();
-	star.slice(1).forEach((s) => s.target$.set({left: e.pageX, top: e.pageY}));
-});
-
-window.addEventListener('mousemove', (e) => {
-	e.preventDefault();
-	star[0].target$.set({left: e.pageX, top: e.pageY});
-});
-
-window.addEventListener('touchmove', (e) => {
-	e.preventDefault();
-	star[0].target$.set({
-		left: e.changedTouches[0].clientX,
-		top: e.changedTouches[0].clientY,
+if (window.matchMedia('(pointer: fine)').matches) {
+	window.addEventListener('mousedown', (e) => {
+		e.preventDefault();
+		star.slice(1).forEach((s) => s.target$.set({left: e.pageX, top: e.pageY}));
 	});
-});
+
+	window.addEventListener('mousemove', (e) => {
+		e.preventDefault();
+		star[0].target$.set({left: e.pageX, top: e.pageY});
+	});
+} else {
+	window.addEventListener(
+		'touchstart',
+		(e) => {
+			e.preventDefault();
+			star.slice(1).forEach((s) =>
+				s.target$.set({
+					left: e.changedTouches[0].clientX,
+					top: e.changedTouches[0].clientY,
+				}),
+			);
+		},
+		true,
+	);
+	window.addEventListener(
+		'touchmove',
+		(e) => {
+			e.preventDefault();
+			star[0].target$.set({
+				left: e.changedTouches[0].clientX,
+				top: e.changedTouches[0].clientY,
+			});
+		},
+		true,
+	);
+}
 
 window.addEventListener('keydown', (e) => {
 	if (e.key === ' ') {
