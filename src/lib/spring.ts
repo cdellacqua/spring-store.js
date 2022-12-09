@@ -427,10 +427,6 @@ export function makeSpringStore<
 
 					let previousState = physicsState;
 					while (physicsTimeAccumulator > 0) {
-						// v = distance / time
-						// Distance should be computed as current - previous, in the following line
-						// the operands are flipped for performance reasons (we are mutating previousValue),
-						// so we negate dt to flip the result sign.
 						remainingDelta = sub(targetValue, physicsState.value, true);
 
 						previousState = physicsState;
