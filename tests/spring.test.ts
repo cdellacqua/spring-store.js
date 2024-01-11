@@ -377,4 +377,17 @@ describe('spring store', () => {
 		expect(customSpring$.content()).to.eq(1);
 		expect(allValues.length).to.be.lessThan(nOfValuesWithDefaultPrecision);
 	});
+	it('tests that the skip followed by idle waits for the new target', async () => {
+		const allValues: number[] = [];
+		const spring$ = makeSpringStore(0);
+		spring$.target$.set(0.5);
+		await spring$.skip();
+		spring$.subscribe((v) => allValues.push(v));
+		spring$.target$.set(0.7);
+		await spring$.idle();
+		spring$.target$.set(1);
+		await spring$.idle();
+		expect(spring$.content()).to.eq(1);
+		expect(allValues.length).to.be.greaterThan(10);
+	});
 });
