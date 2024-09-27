@@ -1,4 +1,3 @@
-import {makeSignal, ReadonlySignal} from '@cdellacqua/signals';
 import {
 	makeDerivedStore,
 	makeStore,
@@ -192,7 +191,7 @@ export type SpringStoreConfig = {
  */
 function makeWaitAnimationFrame(rafImpl?: RAFImplementation) {
 	return function waitAnimationFrame(
-		abort$?: ReadonlySignal<unknown>,
+		abortSignal?: AbortSignal,
 	): Promise<number> {
 		const actualRafImpl =
 			rafImpl ||
@@ -209,14 +208,20 @@ function makeWaitAnimationFrame(rafImpl?: RAFImplementation) {
 
 		let callbackId: unknown | undefined;
 		const rafPromise = new Promise<number>((res, rej) => {
-			const unsubscribe = abort$?.subscribeOnce((err) => {
+			if (abortSignal?.aborted) {
+				rej(abortSignal.reason);
+				return;
+			}
+
+			const listener = () => {
 				if (callbackId !== undefined) {
 					actualRafImpl.cancel(callbackId);
 				}
-				rej(err);
-			});
+				rej(abortSignal?.reason);
+			};
+			abortSignal?.addEventListener('abort', listener, {once: true});
 			callbackId = actualRafImpl.request((time) => {
-				unsubscribe?.();
+				abortSignal?.removeEventListener('abort', listener);
 				callbackId = undefined;
 				res(time);
 			});
@@ -305,9 +310,6 @@ export function makeSpringStore<
 	)() as WidenedT;
 
 	let targetValue = valueToFloat32Array(allZeros);
-	const internalAbort$ = makeSignal<
-		SpringStoreSkipError | SpringStorePauseError
-	>();
 	const state$ = makeStore<SpringStoreState>('idle');
 
 	let idlePromise: Promise<void> | undefined;
@@ -395,7 +397,7 @@ export function makeSpringStore<
 	let remainingDelta = valueToFloat32Array(allZeros);
 	const dt = config?.dt || 1 / 300;
 	const maxDt = config?.maxDt ?? 1 / 24;
-	let physicsTimeAccumulator = 0;
+
 	async function follow() {
 		if (state$.content() !== 'idle') {
 			return;
@@ -406,67 +408,15 @@ export function makeSpringStore<
 			let done = false;
 			let previousTime: number | undefined;
 
-			let wrappedErr: {err: unknown} | undefined;
-			internalAbort$.subscribe((err) => (wrappedErr = {err}));
-
 			while (!done) {
-				try {
-					if (wrappedErr) {
-						throw wrappedErr.err;
-					}
-					previousTime =
-						previousTime ?? (await waitAnimationFrame(internalAbort$));
-					const currentTime = await waitAnimationFrame(internalAbort$);
-					const sampledDt = Math.min(
-						maxDt,
-						(currentTime - previousTime) / 1000 || dt,
-					);
-					previousTime = currentTime;
-
-					physicsTimeAccumulator += sampledDt;
-
-					let previousState = physicsState;
-					while (physicsTimeAccumulator > 0) {
-						remainingDelta = sub(targetValue, physicsState.value, true);
-
-						previousState = physicsState;
-						physicsState = integrate(dt, previousState);
-
-						physicsTimeAccumulator -= dt;
-					}
-
-					const interpolationRatio = 1 + physicsTimeAccumulator / dt;
-					interpolatedState = {
-						value: add(
-							scale(physicsState.value, interpolationRatio, true),
-							scale(previousState.value, 1 - interpolationRatio, true),
-							false,
-						),
-						velocity: add(
-							scale(physicsState.velocity, interpolationRatio, true),
-							scale(previousState.velocity, 1 - interpolationRatio, true),
-							false,
-						),
-					};
-
-					if (
-						!(
-							remainingDelta.some((x) => Math.abs(x) >= precision) ||
-							physicsState.velocity.some((x) => Math.abs(x) >= precision)
-						)
-					) {
+				switch (state$.content()) {
+					case 'skipping': {
 						physicsState = skipToTarget();
 						interpolatedState = physicsState;
 						done = true;
+						break;
 					}
-				} catch {
-					const mostRecentError = wrappedErr?.err;
-					wrappedErr = undefined;
-					if (mostRecentError instanceof SpringStoreSkipError) {
-						physicsState = skipToTarget();
-						interpolatedState = physicsState;
-						done = true;
-					} else if (mostRecentError instanceof SpringStorePauseError) {
+					case 'pausing': {
 						resolvePausePromise();
 						state$.set('paused');
 						try {
@@ -480,8 +430,56 @@ export function makeSpringStore<
 								/* c8 ignore next */
 							} else throw resumeErr; // This shouldn't be possible as the reject callback is always called with a SpringStoreSkipError instance
 						}
-						/* c8 ignore next */
-					} else throw mostRecentError; // This shouldn't be possible as the wrappedErr comes from the internalAbort$ signal, which in turns only emits SpringStoreSkipError or SpringStorePauseError objects
+						break;
+					}
+					case 'running': {
+						previousTime = previousTime ?? (await waitAnimationFrame());
+						const currentTime = await waitAnimationFrame();
+						let remainingDt = Math.min(
+							maxDt,
+							(currentTime - previousTime) / 1000 || dt,
+						);
+						previousTime = currentTime;
+
+						let previousState = physicsState;
+						while (remainingDt > 0) {
+							remainingDelta = sub(targetValue, physicsState.value, true);
+
+							previousState = physicsState;
+							physicsState = integrate(dt, previousState);
+
+							remainingDt -= dt;
+						}
+
+						const interpolationRatio = 1 + remainingDt / dt; /* negative */
+						interpolatedState = {
+							value: add(
+								scale(physicsState.value, interpolationRatio, true),
+								scale(previousState.value, 1 - interpolationRatio, true),
+								false,
+							),
+							velocity: add(
+								scale(physicsState.velocity, interpolationRatio, true),
+								scale(previousState.velocity, 1 - interpolationRatio, true),
+								false,
+							),
+						};
+
+						if (
+							!(
+								remainingDelta.some((x) => Math.abs(x) >= precision) ||
+								physicsState.velocity.some((x) => Math.abs(x) >= precision)
+							)
+						) {
+							physicsState = skipToTarget();
+							interpolatedState = physicsState;
+							done = true;
+						}
+						break;
+					}
+					case 'idle':
+					case 'paused':
+						break;
 				}
 
 				current$.set(float32ArrayToValue(interpolatedState.value));
@@ -516,6 +514,7 @@ export function makeSpringStore<
 		speed$,
 		state$,
 		subscribe: current$.subscribe,
+		watch: current$.watch,
 		velocity$,
 		async pause() {
 			if (state$.content() === 'running') {
@@ -548,7 +547,6 @@ export function makeSpringStore<
 						rej(err);
 					};
 				});
-				internalAbort$.emit(new SpringStorePauseError());
 			}
 			await pausePromise;
 		},
@@ -565,7 +563,6 @@ export function makeSpringStore<
 				const skipError = new SpringStoreSkipError();
 				rejectResumePromise(skipError);
 				rejectPausePromise(skipError);
-				internalAbort$.emit(skipError);
 				await idlePromise;
 			}
 		},

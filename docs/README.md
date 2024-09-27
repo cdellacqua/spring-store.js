@@ -71,10 +71,11 @@ therefore its value can only be changed by a StartHandler (see also makeReadonly
 | `content` | () => `T` |
 | `nOfSubscriptions` | () => `number` |
 | `subscribe` | (`subscriber`: [`Subscriber`](README.md#subscriber)<`T`\>) => [`Unsubscribe`](README.md#unsubscribe) |
+| `watch` | () => `T` |
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:33
+node_modules/universal-stores/dist/store.d.ts:36
 
 ___
 
@@ -106,7 +107,7 @@ A generic setter function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:14
+node_modules/universal-stores/dist/store.d.ts:14
 
 ___
 
@@ -189,7 +190,7 @@ provides the current value upon subscription.
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:56
+node_modules/universal-stores/dist/store.d.ts:79
 
 ___
 
@@ -273,7 +274,7 @@ A generic update function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:20
+node_modules/universal-stores/dist/store.d.ts:20
 
 ___
 
@@ -305,7 +306,7 @@ A generic updater function. Used in [Store](README.md#store)
 
 #### Defined in
 
-node_modules/universal-stores/dist/index.d.ts:18
+node_modules/universal-stores/dist/store.d.ts:18
 
 ## Functions
 
@@ -348,4 +349,4 @@ a spring store.
 
 #### Defined in
 
-[src/lib/spring.ts:247](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L247)
+[src/lib/spring.ts:253](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L253)

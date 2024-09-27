@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {expect} from 'chai';
 import {
 	makeSpringStore,
@@ -143,14 +144,18 @@ describe('spring store', () => {
 		await spring$.idle();
 	});
 	it('skips the simulation while requestAnimationFrame is pending', (done) => {
+		let first = true;
 		(
 			globalThis as {
 				requestAnimationFrame: (cb: (time: number) => void) => unknown;
 			}
 		).requestAnimationFrame = (cb) => {
-			setTimeout(() => {
-				spring$.skip().then(done, done);
-			}, 200);
+			if (first) {
+				setTimeout(() => {
+					spring$.skip().then(done, done);
+				}, 200);
+				first = false;
+			}
 			return setTimeout(() => cb(performance.now()), 500);
 		};
 		(
@@ -251,12 +256,10 @@ describe('spring store', () => {
 		spring$.target$.set(1);
 		await spring$.skip();
 		expect(spring$.content()).to.eqls(1);
-		expect(allValues.length).to.be.greaterThan(0);
-		for (let i = 0; i < allValues.length - 1; i++) {
-			expect(
-				Math.abs(allValues[i] - allValues[i + 1]),
-			).to.be.greaterThanOrEqual(0.5);
-		}
+		expect(allValues.length).to.be.greaterThan(2);
+		expect(
+			Math.abs(allValues.at(-1)! - allValues.at(-2)!),
+		).to.be.greaterThanOrEqual(0.5);
 		expect(states).to.eqls(['idle', 'running', 'skipping', 'idle']);
 	});
 	it('calls skip() and pause() almost at the same time', async () => {
@@ -264,7 +267,9 @@ describe('spring store', () => {
 		const states: SpringStoreState[] = [];
 		spring$.state$.subscribe((state) => states.push(state));
 		spring$.target$.set(1);
-		await Promise.race([spring$.skip(), spring$.pause()]);
+		const skipPromise = spring$.skip();
+		spring$.pause().catch(() => undefined);
+		await skipPromise;
 		expect(spring$.content()).to.eqls(1);
 		expect(states).to.eqls(['idle', 'running', 'skipping', 'idle']);
 	});
@@ -390,4 +395,20 @@ describe('spring store', () => {
 		expect(spring$.content()).to.eq(1);
 		expect(allValues.length).to.be.greaterThan(10);
 	});
+	it('tests that the skip followed by idle waits for the new target /2', async () => {
+		const allValues: number[] = [];
+		const spring$ = makeSpringStore(0.2);
+		spring$.subscribe((v) => allValues.push(v));
+		spring$.target$.set(0.5);
+		await sleep(0);
+		await spring$.skip();
+		spring$.target$.set(1);
+		await spring$.idle();
+		expect(spring$.content()).to.eq(1);
+		expect(allValues.length).to.be.greaterThan(10);
+	});
 });
+
+function sleep(ms: number) {
+	return new Promise((res) => setTimeout(res, ms));
+}

@@ -70,7 +70,6 @@
 		"vite": "^2.9.12"
 	},
 	"dependencies": {
-		"@cdellacqua/signals": "^5.0.4",
-		"universal-stores": "^2.3.2"
+		"universal-stores": "^2.4.3"
 	}
 }
