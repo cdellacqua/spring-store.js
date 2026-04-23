@@ -5,7 +5,7 @@ import {
 	SpringStore,
 	SpringStoreSkipError,
 	SpringStoreState,
-} from '../src/lib';
+} from '../src/lib/index.js';
 
 describe('spring store', () => {
 	afterEach(() => {

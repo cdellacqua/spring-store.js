@@ -1,5 +1,5 @@
 import {makeDerivedStore} from 'universal-stores';
-import {makeSpringStore} from './lib';
+import {makeSpringStore} from './lib/index.js';
 
 const spring$ = makeSpringStore(1, {
 	damping: 30,

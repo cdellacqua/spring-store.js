@@ -1,5 +1,5 @@
 import './style.css';
-import {makeSpringStore} from './lib';
+import {makeSpringStore} from './lib/index.js';
 import {makeDerivedStore} from 'universal-stores';
 
 const appDiv = document.getElementById('app') as HTMLDivElement;

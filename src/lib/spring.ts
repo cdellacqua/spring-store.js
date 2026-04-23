@@ -4,7 +4,7 @@ import {
 	ReadonlyStore,
 	Store,
 } from 'universal-stores';
-import {add, norm, scale, sub} from './vec-math';
+import {add, norm, scale, sub} from './vec-math.js';
 
 const noop = () => undefined as void;
 

@@ -1,4 +1,4 @@
-export * from './spring';
+export * from './spring.js';
 export type {
 	Unsubscribe,
 	Subscriber,

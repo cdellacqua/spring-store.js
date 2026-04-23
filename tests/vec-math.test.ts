@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {add, norm, scale, sub} from '../src/lib/vec-math';
+import {add, norm, scale, sub} from '../src/lib/vec-math.js';
 
 describe('typed arrays operations', () => {
 	it('adds two Float32Array objects returning a new object', () => {
