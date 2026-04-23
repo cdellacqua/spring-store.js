@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import {expect} from 'chai';
 import {
 	makeSpringStore,
 	SpringStore,
@@ -143,8 +141,9 @@ describe('spring store', () => {
 		spring$.target$.set(1);
 		await spring$.idle();
 	});
-	it('skips the simulation while requestAnimationFrame is pending', (done) => {
+	it('skips the simulation while requestAnimationFrame is pending', async () => {
 		let first = true;
+		const skipPromise = new Promise<void>((resolve, reject) => {
 		(
 			globalThis as {
 				requestAnimationFrame: (cb: (time: number) => void) => unknown;
@@ -152,17 +151,19 @@ describe('spring store', () => {
 		).requestAnimationFrame = (cb) => {
 			if (first) {
 				setTimeout(() => {
-					spring$.skip().then(done, done);
+					spring$.skip().then(() => resolve(), reject);
 				}, 200);
 				first = false;
 			}
 			return setTimeout(() => cb(performance.now()), 500);
 		};
+		});
 		(
 			globalThis as {cancelAnimationFrame: (id: number) => void}
 		).cancelAnimationFrame = (id) => clearTimeout(id);
 		const spring$ = makeSpringStore(0);
 		spring$.target$.set(1);
+		await skipPromise;
 	});
 	it('checks the smooth transition towards the target', async () => {
 		const spring$ = makeSpringStore(0);
@@ -175,76 +176,80 @@ describe('spring store', () => {
 			expect(Math.abs(allValues[i] - allValues[i + 1])).to.be.lessThan(0.5);
 		}
 	});
-	it('pauses and resumes the store', (done) => {
+	it('pauses and resumes the store', async () => {
 		const spring$ = makeSpringStore(0);
 		const states: SpringStoreState[] = [];
 		spring$.state$.subscribe((state) => states.push(state));
-		spring$.target$.set(1);
-		const unsubscribe = spring$.subscribe((current) => {
-			if (current > 0.5) {
-				unsubscribe();
-				spring$
-					.pause()
-					.then(() => {
-						expect(spring$.content()).to.not.eqls(1);
-						spring$.resume();
-						return spring$.idle();
-					})
-					.then(() => {
-						expect(spring$.content()).to.eqls(1);
-						expect(states).to.eqls([
-							'idle',
-							'running',
-							'pausing',
-							'paused',
-							'running',
-							'idle',
-						]);
-						done();
-					})
-					.catch(done);
-			}
+		await new Promise<void>((resolve, reject) => {
+			const unsubscribe = spring$.subscribe((current) => {
+				if (current > 0.5) {
+					unsubscribe();
+					spring$
+						.pause()
+						.then(() => {
+							expect(spring$.content()).to.not.eqls(1);
+							spring$.resume();
+							return spring$.idle();
+						})
+						.then(() => {
+							expect(spring$.content()).to.eqls(1);
+							expect(states).to.eqls([
+								'idle',
+								'running',
+								'pausing',
+								'paused',
+								'running',
+								'idle',
+							]);
+							resolve();
+						}, reject);
+				}
+			});
+
+			spring$.target$.set(1);
 		});
 	});
-	it('calls pause() and resume() multiple times', (done) => {
+	it('calls pause() and resume() multiple times', async () => {
 		const spring$ = makeSpringStore(0);
 		const states: SpringStoreState[] = [];
 		spring$.state$.subscribe((state) => states.push(state));
-		spring$.target$.set(1);
-		const unsubscribe = spring$.subscribe((current) => {
-			if (current > 0.5) {
-				unsubscribe();
-				spring$.pause().catch(done);
-				spring$.pause().catch(done);
-				spring$.pause().catch(done);
-				spring$.pause().catch(done);
-				spring$.pause().catch(done);
-				spring$.pause().catch(done);
-				spring$
-					.pause()
-					.then(() => {
-						expect(spring$.content()).to.not.eqls(1);
-						spring$.resume();
-						spring$.resume();
-						spring$.resume();
-						spring$.resume();
-						spring$.resume();
-						return spring$.idle();
-					})
-					.then(() => {
-						expect(spring$.content()).to.eqls(1);
-						expect(states).to.eqls([
-							'idle',
-							'running',
-							'pausing',
-							'paused',
-							'running',
-							'idle',
-						]);
-						done();
-					})
-					.catch(done);
-			}
+		await new Promise<void>((resolve, reject) => {
+			const unsubscribe = spring$.subscribe((current) => {
+				if (current > 0.5) {
+					unsubscribe();
+					spring$.pause().catch(reject);
+					spring$.pause().catch(reject);
+					spring$.pause().catch(reject);
+					spring$.pause().catch(reject);
+					spring$.pause().catch(reject);
+					spring$.pause().catch(reject);
+					spring$
+						.pause()
+						.then(() => {
+							expect(spring$.content()).to.not.eqls(1);
+							spring$.resume();
+							spring$.resume();
+							spring$.resume();
+							spring$.resume();
+							spring$.resume();
+							return spring$.idle();
+						})
+						.then(() => {
+							expect(spring$.content()).to.eqls(1);
+							expect(states).to.eqls([
+								'idle',
+								'running',
+								'pausing',
+								'paused',
+								'running',
+								'idle',
+							]);
+							resolve();
+						}, reject);
+				}
+			});
+
+			spring$.target$.set(1);
 		});
 	});
 	it('skips to target', async () => {
@@ -278,14 +283,17 @@ describe('spring store', () => {
 		const states: SpringStoreState[] = [];
 		spring$.state$.subscribe((state) => states.push(state));
 		spring$.target$.set(1);
-		let pauseErr: unknown;
-		await Promise.all([
-			spring$.pause().catch((err) => (pauseErr = err)),
+		const [pauseResult, skipResult] = await Promise.allSettled([
+			spring$.pause(),
 			spring$.skip(),
 		]);
 		expect(spring$.content()).to.eqls(1);
 		expect(states).to.eqls(['idle', 'running', 'pausing', 'skipping', 'idle']);
-		expect(pauseErr).to.be.instanceOf(SpringStoreSkipError);
+		expect(skipResult.status).to.eq('fulfilled');
+		expect(pauseResult.status).to.eq('rejected');
+		if (pauseResult.status === 'rejected') {
+			expect(pauseResult.reason).to.be.instanceOf(SpringStoreSkipError);
+		}
 	});
 	it('calls skip() after pause()', async () => {
 		const spring$ = makeSpringStore(0);

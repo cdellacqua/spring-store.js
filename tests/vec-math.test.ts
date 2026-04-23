@@ -1,4 +1,3 @@
-import {expect} from 'chai';
 import {add, norm, scale, sub} from '../src/lib/vec-math.js';
 
 describe('typed arrays operations', () => {

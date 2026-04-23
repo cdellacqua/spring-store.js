@@ -1,4 +1,3 @@
-import {expect} from 'chai';
 import {makeSpringStore, SpringStore} from '../src/lib/index.js';
 
 describe('examples', () => {

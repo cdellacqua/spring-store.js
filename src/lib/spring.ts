@@ -533,6 +533,7 @@ export function makeSpringStore<
 						rej(err);
 					};
 				});
+				pausePromise.catch(noop);
 				resumePromise = new Promise<void>((res, rej) => {
 					resolveResumePromise = () => {
 						resumePromise = undefined;
@@ -547,6 +548,7 @@ export function makeSpringStore<
 						rej(err);
 					};
 				});
+				resumePromise.catch(noop);
 			}
 			await pausePromise;
 		},
