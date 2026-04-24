@@ -82,6 +82,6 @@
 		"vitest": "^4.1.5"
 	},
 	"dependencies": {
-		"universal-stores": "^2.4.3"
+		"universal-stores": "^3.0.0"
 	}
 }
