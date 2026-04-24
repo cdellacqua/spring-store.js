@@ -20,7 +20,8 @@
 		"animation"
 	],
 	"repository": {
-		"url": "git+https://github.com/cdellacqua/spring-store.js"
+		"type": "git",
+		"url": "git+https://github.com/cdellacqua/spring-store.js.git"
 	},
 	"bugs": {
 		"url": "https://github.com/cdellacqua/spring-store.js/issues"
