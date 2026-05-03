@@ -332,8 +332,8 @@ describe('spring store', () => {
 					}, 1000 / 60),
 				cancel: (id) => clearTimeout(id as number),
 			},
-			dt: 1,
-			maxDt: 1,
+			dt: 0.1,
+			maxDt: 0.1,
 			damping: 10,
 			stiffness: 300,
 		});

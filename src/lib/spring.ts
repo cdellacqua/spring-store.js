@@ -1,9 +1,4 @@
-import {
-	makeDerivedStore,
-	makeStore,
-	ReadonlyStore,
-	Store,
-} from 'universal-stores';
+import {makeDerivedStore, makeStore, ReadonlyStore, Store} from 'universal-stores';
 import {add, norm, scale, sub} from './vec-math.js';
 
 const noop = () => undefined as void;
@@ -44,12 +39,7 @@ export class SpringStorePauseError extends Error {
 }
 
 /** All possible states of a spring store */
-export type SpringStoreState =
-	| 'idle'
-	| 'running'
-	| 'pausing'
-	| 'skipping'
-	| 'paused';
+export type SpringStoreState = 'idle' | 'running' | 'pausing' | 'skipping' | 'paused';
 
 /**
  * A spring store is a special kind of store that performs a physics simulation
@@ -190,21 +180,18 @@ export type SpringStoreConfig = {
  * @returns a Promisified version of requestAnimationFrame.
  */
 function makeWaitAnimationFrame(rafImpl?: RAFImplementation) {
-	return function waitAnimationFrame(
-		abortSignal?: AbortSignal,
-	): Promise<number> {
+	return function waitAnimationFrame(abortSignal?: AbortSignal): Promise<number> {
 		const actualRafImpl =
 			rafImpl ||
 			(typeof requestAnimationFrame !== 'undefined'
 				? {
 						request: (cb: (time: number) => void) => requestAnimationFrame(cb),
 						cancel: (id: number) => cancelAnimationFrame(id),
-				  }
+					}
 				: {
-						request: (cb: (time: number) => void) =>
-							setTimeout(() => cb(performance.now()), 1000 / 60),
+						request: (cb: (time: number) => void) => setTimeout(() => cb(performance.now()), 1000 / 60),
 						cancel: (id: number) => clearTimeout(id),
-				  });
+					});
 
 		let callbackId: unknown | undefined;
 		const rafPromise = new Promise<number>((res, rej) => {
@@ -249,9 +236,7 @@ function makeWaitAnimationFrame(rafImpl?: RAFImplementation) {
  * @param config an optional configuration object to customize the behavior of the store.
  * @returns a spring store.
  */
-export function makeSpringStore<
-	T extends number | number[] | Record<string, number>,
->(
+export function makeSpringStore<T extends number | number[] | Record<string, number>>(
 	value: T extends number ? number : T,
 	config?: SpringStoreConfig,
 ): SpringStore<T extends number ? number : T> {
@@ -261,17 +246,11 @@ export function makeSpringStore<
 
 	type WidenedT = T extends number ? number : T;
 
-	const waitAnimationFrame = makeWaitAnimationFrame(
-		config?.requestAnimationFrameImplementation,
-	);
+	const waitAnimationFrame = makeWaitAnimationFrame(config?.requestAnimationFrameImplementation);
 
 	const valueKeys = typeof value === 'number' ? [] : Object.keys(value);
 
-	const cloneValue = (typeof value === 'number'
-		? (x: number) => x
-		: Array.isArray(value)
-		? (v: number[]) => [...v]
-		: (v: Record<string, number>) => ({...v})) as unknown as (
+	const cloneValue = (typeof value === 'number' ? (x: number) => x : Array.isArray(value) ? (v: number[]) => [...v] : (v: Record<string, number>) => ({...v})) as unknown as (
 		x: WidenedT,
 	) => WidenedT;
 	const valueToFloat32Array = (
@@ -283,7 +262,7 @@ export function makeSpringStore<
 						arr[i] = v[valueKeys[i]];
 					}
 					return arr;
-			  }
+				}
 	) as (v: WidenedT) => Float32Array;
 	const float32ArrayToValue = (
 		typeof value === 'number'
@@ -294,7 +273,7 @@ export function makeSpringStore<
 						v[valueKeys[i]] = arr[i];
 					}
 					return v;
-			  }
+				}
 	) as (v: Float32Array) => WidenedT;
 
 	const allZeros = (
@@ -306,7 +285,7 @@ export function makeSpringStore<
 						v[valueKeys[i]] = 0;
 					}
 					return v;
-			  }
+				}
 	)() as WidenedT;
 
 	let targetValue = valueToFloat32Array(allZeros);
@@ -323,9 +302,7 @@ export function makeSpringStore<
 
 	const velocity$ = makeStore(cloneValue(allZeros));
 	// speed = |velocity|
-	const speed$ = makeDerivedStore(velocity$, (v) =>
-		norm(valueToFloat32Array(v)),
-	);
+	const speed$ = makeDerivedStore(velocity$, (v) => norm(valueToFloat32Array(v)));
 
 	type PhysicsState = {
 		velocity: Float32Array;
@@ -351,9 +328,10 @@ export function makeSpringStore<
 			firstTarget = false;
 			return;
 		}
-		follow().catch((err) =>
-			console.error('[spring store] unable to follow target', err),
-		);
+		stuckWindowAccDt = 0;
+		stuckWindowMaxDelta = 0;
+		previousWindowMaxDelta = Infinity;
+		follow().catch((err) => console.error('[spring store] unable to follow target', err));
 	});
 	state$.subscribe((state) => {
 		if (state === 'idle') {
@@ -398,6 +376,16 @@ export function makeSpringStore<
 	const dt = config?.dt || 1 / 300;
 	const maxDt = config?.maxDt ?? 1 / 24;
 
+	// Rolling-window envelope of |remainingDelta| used to detect
+	// non-convergence (e.g. damping <= 0 producing perpetual oscillation).
+	// Reset on every target change so that a fresh trajectory doesn't
+	// inherit the previous window's peak.
+	const stuckWindowDuration = 1;
+	const stuckWindowDecayThreshold = 0.99;
+	let stuckWindowAccDt = 0;
+	let stuckWindowMaxDelta = 0;
+	let previousWindowMaxDelta = Infinity;
+
 	async function follow() {
 		if (state$.content() !== 'idle') {
 			return;
@@ -435,10 +423,8 @@ export function makeSpringStore<
 					case 'running': {
 						previousTime = previousTime ?? (await waitAnimationFrame());
 						const currentTime = await waitAnimationFrame();
-						let remainingDt = Math.min(
-							maxDt,
-							(currentTime - previousTime) / 1000 || dt,
-						);
+						const frameDt = Math.min(maxDt, (currentTime - previousTime) / 1000 || dt);
+						let remainingDt = frameDt;
 						previousTime = currentTime;
 
 						let previousState = physicsState;
@@ -453,27 +439,32 @@ export function makeSpringStore<
 
 						const interpolationRatio = 1 + remainingDt / dt; /* negative */
 						interpolatedState = {
-							value: add(
-								scale(physicsState.value, interpolationRatio, true),
-								scale(previousState.value, 1 - interpolationRatio, true),
-								false,
-							),
-							velocity: add(
-								scale(physicsState.velocity, interpolationRatio, true),
-								scale(previousState.velocity, 1 - interpolationRatio, true),
-								false,
-							),
+							value: add(scale(physicsState.value, interpolationRatio, true), scale(previousState.value, 1 - interpolationRatio, true), false),
+							velocity: add(scale(physicsState.velocity, interpolationRatio, true), scale(previousState.velocity, 1 - interpolationRatio, true), false),
 						};
 
-						if (
-							!(
-								remainingDelta.some((x) => Math.abs(x) >= precision) ||
-								physicsState.velocity.some((x) => Math.abs(x) >= precision)
-							)
-						) {
+						let currentMaxDelta = 0;
+						for (let i = 0; i < remainingDelta.length; i++) {
+							currentMaxDelta = Math.max(currentMaxDelta, Math.abs(remainingDelta[i]));
+						}
+
+						if (!(currentMaxDelta >= precision || physicsState.velocity.some((x) => Math.abs(x) >= precision))) {
 							physicsState = skipToTarget();
 							interpolatedState = physicsState;
 							done = true;
+						} else {
+							stuckWindowMaxDelta = Math.max(stuckWindowMaxDelta, currentMaxDelta);
+							stuckWindowAccDt += frameDt;
+							if (stuckWindowAccDt >= stuckWindowDuration) {
+								if (stuckWindowMaxDelta >= previousWindowMaxDelta * stuckWindowDecayThreshold) {
+									physicsState = skipToTarget();
+									interpolatedState = physicsState;
+									done = true;
+								}
+								previousWindowMaxDelta = stuckWindowMaxDelta;
+								stuckWindowMaxDelta = 0;
+								stuckWindowAccDt = 0;
+							}
 						}
 						break;
 					}
@@ -557,10 +548,7 @@ export function makeSpringStore<
 		},
 		async skip() {
 			const state = state$.content();
-			if (
-				(state === 'running' || state === 'pausing' || state === 'paused') &&
-				idlePromise
-			) {
+			if ((state === 'running' || state === 'pausing' || state === 'paused') && idlePromise) {
 				state$.set('skipping');
 				const skipError = new SpringStoreSkipError();
 				rejectResumePromise(skipError);
