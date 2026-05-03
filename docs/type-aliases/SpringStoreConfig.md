@@ -8,7 +8,7 @@
 
 > **SpringStoreConfig** = `object` & `Partial`\<[`SpringConfig`](SpringConfig.md)\>
 
-Defined in: [src/lib/spring.ts:158](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L158)
+Defined in: [src/lib/spring.ts:148](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L148)
 
 Configuration options for a spring store
 

@@ -8,7 +8,7 @@
 
 > **SpringStore**\<`T`\> = [`ReadonlyStore`](ReadonlyStore.md)\<`T`\> & `object`
 
-Defined in: [src/lib/spring.ts:59](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L59)
+Defined in: [src/lib/spring.ts:49](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L49)
 
 A spring store is a special kind of store that performs a physics simulation
 to reach a set target. It can be used to perform animations and to make a UI
