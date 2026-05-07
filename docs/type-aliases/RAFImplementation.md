@@ -8,7 +8,7 @@
 
 > **RAFImplementation** = `object`
 
-Defined in: [src/lib/spring.ts:7](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L7)
+Defined in: [src/lib/spring.ts:6](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L6)
 
 Request animation frame implementation.
 
@@ -18,7 +18,7 @@ Request animation frame implementation.
 
 > **cancel**(`id`): `void`
 
-Defined in: [src/lib/spring.ts:17](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L17)
+Defined in: [src/lib/spring.ts:16](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L16)
 
 Remove a callback that was previously added to the animation frame queue.
 
@@ -40,7 +40,7 @@ the return value of the request method, which identifies an enqueued callback.
 
 > **request**(`callback`): `unknown`
 
-Defined in: [src/lib/spring.ts:12](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L12)
+Defined in: [src/lib/spring.ts:11](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L11)
 
 Enqueue the passed callback for the execution on the next animation frame.
 

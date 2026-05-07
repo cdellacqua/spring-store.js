@@ -8,7 +8,7 @@
 
 > **SpringConfig** = `object`
 
-Defined in: [src/lib/spring.ts:123](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L123)
+Defined in: [src/lib/spring.ts:122](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L122)
 
 Configuration options for the spring
 
@@ -18,7 +18,7 @@ Configuration options for the spring
 
 > **damping**: `number`
 
-Defined in: [src/lib/spring.ts:137](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L137)
+Defined in: [src/lib/spring.ts:136](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L136)
 
 The damping is used to compute how much friction needs to be applied to slow down the spring.
 The friction is computed as `friction = velocity * damping`.
@@ -35,7 +35,7 @@ The friction is computed as `friction = velocity * damping`.
 
 > **precision**: `number`
 
-Defined in: [src/lib/spring.ts:144](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L144)
+Defined in: [src/lib/spring.ts:143](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L143)
 
 A threshold used to determine if the simulation can stop.
 This threshold is applied to both the velocity and the value of the spring. If no value in both
@@ -48,7 +48,7 @@ current target.
 
 > **stiffness**: `number`
 
-Defined in: [src/lib/spring.ts:130](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L130)
+Defined in: [src/lib/spring.ts:129](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L129)
 
 The stiffness is used to compute the elastic force as per Hooke's law:
 `elastic_force = displacement * stiffness`.

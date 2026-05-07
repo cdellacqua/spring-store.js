@@ -6,7 +6,7 @@
 
 # Class: SpringStoreSkipError
 
-Defined in: [src/lib/spring.ts:25](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L25)
+Defined in: [src/lib/spring.ts:24](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L24)
 
 A custom error that's raised when the `.skip()` method is invoked on a spring store.
 If `.skip()` is called while the store is 'pausing', the promise returned by `.pause()`
@@ -22,7 +22,7 @@ will reject with this error.
 
 > **new SpringStoreSkipError**(): `SpringStoreSkipError`
 
-Defined in: [src/lib/spring.ts:26](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L26)
+Defined in: [src/lib/spring.ts:25](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L25)
 
 #### Returns
 

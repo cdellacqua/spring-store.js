@@ -8,6 +8,6 @@
 
 > **SpringStoreState** = `"idle"` \| `"running"` \| `"pausing"` \| `"skipping"` \| `"paused"`
 
-Defined in: [src/lib/spring.ts:42](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L42)
+Defined in: [src/lib/spring.ts:41](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L41)
 
 All possible states of a spring store

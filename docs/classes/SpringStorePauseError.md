@@ -6,7 +6,7 @@
 
 # Class: SpringStorePauseError
 
-Defined in: [src/lib/spring.ts:35](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L35)
+Defined in: [src/lib/spring.ts:34](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L34)
 
 A custom error that's raised when the `.pause()` method is invoked on a spring store.
 It's used internally to stop any pending operation as soon as possible (e.g. a pending requestAnimationFrame).
@@ -21,7 +21,7 @@ It's used internally to stop any pending operation as soon as possible (e.g. a p
 
 > **new SpringStorePauseError**(): `SpringStorePauseError`
 
-Defined in: [src/lib/spring.ts:36](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L36)
+Defined in: [src/lib/spring.ts:35](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L35)
 
 #### Returns
 
