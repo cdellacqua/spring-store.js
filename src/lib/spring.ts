@@ -1,5 +1,4 @@
 import {makeDerivedStore, makeStore, ReadonlyStore, Store} from 'universal-stores';
-import {add, norm, scale, sub} from './vec-math.js';
 
 const noop = () => undefined as void;
 
@@ -248,47 +247,118 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 
 	const waitAnimationFrame = makeWaitAnimationFrame(config?.requestAnimationFrameImplementation);
 
-	const valueKeys = typeof value === 'number' ? [] : Object.keys(value);
-
-	const cloneValue = (typeof value === 'number' ? (x: number) => x : Array.isArray(value) ? (v: number[]) => [...v] : (v: Record<string, number>) => ({...v})) as unknown as (
-		x: WidenedT,
-	) => WidenedT;
-	const valueToFloat32Array = (
-		typeof value === 'number'
-			? (v: number) => new Float32Array([v])
-			: (v: Record<string, number>) => {
-					const arr = new Float32Array(valueKeys.length);
-					for (let i = 0; i < valueKeys.length; i++) {
-						arr[i] = v[valueKeys[i]];
-					}
-					return arr;
+	// Internal math representation. For `number` user values, a scalar; for both
+	// `number[]` and `Record<string, number>` user values, a packed `number[]`
+	// indexed by the captured key order. Routing object-keyed values through an
+	// internal array lets the per-frame math use indexed access (V8 optimizes
+	// this aggressively) instead of repeated string-keyed property lookups.
+	type Internal = number | number[];
+	type ValueOps = {
+		zero(): Internal;
+		clone(v: Internal): Internal;
+		scale(v: Internal, k: number): Internal; // fresh: v * k
+		scaleMut(v: Internal, k: number): Internal; // mutates v (where applicable): v *= k
+		addMut(a: Internal, b: Internal): Internal; // mutates a: a += b
+		subMut(a: Internal, b: Internal): Internal; // mutates a: a -= b
+		sub(a: Internal, b: Internal): Internal; // fresh: a - b
+		lerp(s: Internal, e: Internal, t: number): Internal; // fresh
+		maxAbs(v: Internal): number;
+		norm(v: Internal): number;
+		toUser(v: Internal): WidenedT;
+		fromUser(v: WidenedT): Internal;
+	};
+	function makeArrayLikeOps(length: number) {
+		return {
+			zero: () => new Array<number>(length).fill(0),
+			clone: (v: number[]) => v.slice(),
+			scale: (v: number[], k: number) => {
+				const out = new Array<number>(length);
+				for (let i = 0; i < length; i++) out[i] = v[i] * k;
+				return out;
+			},
+			scaleMut: (v: number[], k: number) => {
+				for (let i = 0; i < length; i++) v[i] *= k;
+				return v;
+			},
+			addMut: (a: number[], b: number[]) => {
+				for (let i = 0; i < length; i++) a[i] += b[i];
+				return a;
+			},
+			subMut: (a: number[], b: number[]) => {
+				for (let i = 0; i < length; i++) a[i] -= b[i];
+				return a;
+			},
+			sub: (a: number[], b: number[]) => {
+				const out = new Array<number>(length);
+				for (let i = 0; i < length; i++) out[i] = a[i] - b[i];
+				return out;
+			},
+			lerp: (s: number[], e: number[], t: number) => {
+				const out = new Array<number>(length);
+				for (let i = 0; i < length; i++) out[i] = s[i] + (e[i] - s[i]) * t;
+				return out;
+			},
+			maxAbs: (v: number[]) => {
+				let max = 0;
+				for (let i = 0; i < length; i++) {
+					const abs = Math.abs(v[i]);
+					if (abs > max) max = abs;
 				}
-	) as (v: WidenedT) => Float32Array;
-	const float32ArrayToValue = (
-		typeof value === 'number'
-			? (arr: Float32Array) => arr[0]
-			: (arr: Float32Array) => {
-					const v = cloneValue(allZeros) as Record<string, number>;
-					for (let i = 0; i < valueKeys.length; i++) {
-						v[valueKeys[i]] = arr[i];
-					}
-					return v;
-				}
-	) as (v: Float32Array) => WidenedT;
+				return max;
+			},
+			norm: (v: number[]) => {
+				let sum = 0;
+				for (let i = 0; i < length; i++) sum += v[i] * v[i];
+				return Math.sqrt(sum);
+			},
+		};
+	}
+	const valueOps = ((): ValueOps => {
+		if (typeof value === 'number') {
+			const ops = {
+				zero: () => 0,
+				clone: (v: number) => v,
+				scale: (v: number, k: number) => v * k,
+				scaleMut: (v: number, k: number) => v * k,
+				addMut: (a: number, b: number) => a + b,
+				subMut: (a: number, b: number) => a - b,
+				sub: (a: number, b: number) => a - b,
+				lerp: (s: number, e: number, t: number) => s + (e - s) * t,
+				maxAbs: (v: number) => Math.abs(v),
+				norm: (v: number) => Math.abs(v),
+				toUser: (v: number) => v,
+				fromUser: (v: number) => v,
+			};
+			return ops as unknown as ValueOps;
+		}
+		if (Array.isArray(value)) {
+			const length = value.length;
+			const ops = {
+				...makeArrayLikeOps(length),
+				toUser: (v: number[]) => v,
+				fromUser: (v: number[]) => v.slice(),
+			};
+			return ops as unknown as ValueOps;
+		}
+		const keys = Object.keys(value);
+		const length = keys.length;
+		const ops = {
+			...makeArrayLikeOps(length),
+			toUser: (v: number[]) => {
+				const o: Record<string, number> = {};
+				for (let i = 0; i < length; i++) o[keys[i]] = v[i];
+				return o;
+			},
+			fromUser: (v: Record<string, number>) => {
+				const arr = new Array<number>(length);
+				for (let i = 0; i < length; i++) arr[i] = v[keys[i]];
+				return arr;
+			},
+		};
+		return ops as unknown as ValueOps;
+	})();
 
-	const allZeros = (
-		typeof value === 'number'
-			? () => 0
-			: () => {
-					const v = cloneValue(value) as Record<string, number>;
-					for (let i = 0; i < valueKeys.length; i++) {
-						v[valueKeys[i]] = 0;
-					}
-					return v;
-				}
-	)() as WidenedT;
-
-	let targetValue = valueToFloat32Array(allZeros);
+	let targetValue: Internal = valueOps.zero();
 	const state$ = makeStore<SpringStoreState>('idle');
 
 	let idlePromise: Promise<void> | undefined;
@@ -300,30 +370,34 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 	let rejectPausePromise = noop as (err?: unknown) => void;
 	let resolveIdlePromise = noop;
 
-	const velocity$ = makeStore(cloneValue(allZeros));
+	// Private internal-typed velocity store. The public `velocity$` and `speed$`
+	// derive from it, so neither toUser nor norm runs on a frame when nobody
+	// is subscribed to them. The math loop only writes the internal value.
+	const velocityInternal$ = makeStore<Internal>(valueOps.zero());
+	const velocity$ = makeDerivedStore(velocityInternal$, (v) => valueOps.toUser(v));
 	// speed = |velocity|
-	const speed$ = makeDerivedStore(velocity$, (v) => norm(valueToFloat32Array(v)));
+	const speed$ = makeDerivedStore(velocityInternal$, (v) => valueOps.norm(v));
 
 	type PhysicsState = {
-		velocity: Float32Array;
-		value: Float32Array;
+		velocity: Internal;
+		value: Internal;
 	};
 
-	let physicsState = {
-		velocity: valueToFloat32Array(allZeros),
-		value: valueToFloat32Array(value),
+	let physicsState: PhysicsState = {
+		velocity: valueOps.zero(),
+		value: valueOps.fromUser(value as WidenedT),
 	};
 
-	let interpolatedState = {
-		velocity: valueToFloat32Array(allZeros),
-		value: valueToFloat32Array(value),
+	let interpolatedState: PhysicsState = {
+		velocity: valueOps.zero(),
+		value: valueOps.fromUser(value as WidenedT),
 	};
 
 	const current$ = makeStore(value);
 	const target$ = makeStore(value);
 	let firstTarget = true;
 	target$.subscribe((target) => {
-		targetValue = valueToFloat32Array(target);
+		targetValue = valueOps.fromUser(target as WidenedT);
 		if (firstTarget) {
 			firstTarget = false;
 			return;
@@ -346,33 +420,33 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 	function integrate(dt: number, state: PhysicsState): PhysicsState {
 		// Hooke's law:
 		// F = -displacement * elastic constant
-		const elasticForce = scale(remainingDelta, stiffness, true);
+		const elasticForce = valueOps.scale(remainingDelta, stiffness);
 		// We are cheating a little bit here, by using a custom
 		// friction that's proportional to the current velocity:
-		const friction = scale(state.velocity, damping, true);
+		const friction = valueOps.scale(state.velocity, damping);
 		// F = m * a => a = F / m. Assuming m = 1 we get:
-		const acceleration = sub(elasticForce, friction, false);
+		const acceleration = valueOps.subMut(elasticForce, friction);
 		// dv = a * dt
-		const dVelocity = scale(acceleration, dt, false);
+		const dVelocity = valueOps.scaleMut(acceleration, dt);
 		// v += dv
-		const velocity = add(dVelocity, state.velocity, false);
+		const velocity = valueOps.addMut(dVelocity, state.velocity);
 		// dValue = v * dt
-		const dValue = scale(velocity, dt, true);
+		const dValue = valueOps.scale(velocity, dt);
 
 		return {
 			// value += dv
-			value: add(dValue, state.value, false),
+			value: valueOps.addMut(dValue, state.value),
 			velocity,
 		};
 	}
 	function skipToTarget(): PhysicsState {
-		remainingDelta = valueToFloat32Array(allZeros);
+		remainingDelta = valueOps.zero();
 		return {
-			velocity: valueToFloat32Array(allZeros),
-			value: new Float32Array(targetValue),
+			velocity: valueOps.zero(),
+			value: valueOps.clone(targetValue),
 		};
 	}
-	let remainingDelta = valueToFloat32Array(allZeros);
+	let remainingDelta = valueOps.zero();
 	const dt = config?.dt || 1 / 300;
 	const maxDt = config?.maxDt ?? 1 / 24;
 
@@ -429,7 +503,7 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 
 						let previousState = physicsState;
 						while (remainingDt > 0) {
-							remainingDelta = sub(targetValue, physicsState.value, true);
+							remainingDelta = valueOps.sub(targetValue, physicsState.value);
 
 							previousState = physicsState;
 							physicsState = integrate(dt, previousState);
@@ -439,16 +513,13 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 
 						const interpolationRatio = 1 + remainingDt / dt; /* negative */
 						interpolatedState = {
-							value: add(scale(physicsState.value, interpolationRatio, true), scale(previousState.value, 1 - interpolationRatio, true), false),
-							velocity: add(scale(physicsState.velocity, interpolationRatio, true), scale(previousState.velocity, 1 - interpolationRatio, true), false),
+							value: valueOps.lerp(previousState.value, physicsState.value, interpolationRatio),
+							velocity: valueOps.lerp(previousState.velocity, physicsState.velocity, interpolationRatio),
 						};
 
-						let currentMaxDelta = 0;
-						for (let i = 0; i < remainingDelta.length; i++) {
-							currentMaxDelta = Math.max(currentMaxDelta, Math.abs(remainingDelta[i]));
-						}
+						const currentMaxDelta = valueOps.maxAbs(remainingDelta);
 
-						if (!(currentMaxDelta >= precision || physicsState.velocity.some((x) => Math.abs(x) >= precision))) {
+						if (!(currentMaxDelta >= precision || valueOps.maxAbs(physicsState.velocity) >= precision)) {
 							physicsState = skipToTarget();
 							interpolatedState = physicsState;
 							done = true;
@@ -473,8 +544,8 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 						break;
 				}
 
-				current$.set(float32ArrayToValue(interpolatedState.value));
-				velocity$.set(float32ArrayToValue(interpolatedState.velocity));
+				current$.set(valueOps.toUser(interpolatedState.value));
+				velocityInternal$.set(interpolatedState.velocity);
 			}
 		} finally {
 			state$.set('idle');

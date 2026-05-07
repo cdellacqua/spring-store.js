@@ -415,6 +415,18 @@ describe('spring store', () => {
 		expect(spring$.content()).to.eq(1);
 		expect(allValues.length).to.be.greaterThan(10);
 	});
+	it('reaches the same value regardless of target key order', async () => {
+		const spring$ = makeSpringStore({a: 0, b: 0});
+		spring$.target$.set({a: 1, b: 2});
+		await spring$.idle();
+		expect(spring$.content()).to.eqls({a: 1, b: 2});
+
+		// Same target written in reversed key order — should produce
+		// the same internal trajectory and the same final value.
+		spring$.target$.set({b: 4, a: 3});
+		await spring$.idle();
+		expect(spring$.content()).to.eqls({a: 3, b: 4});
+	});
 });
 
 function sleep(ms: number) {
