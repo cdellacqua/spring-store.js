@@ -101,8 +101,19 @@ export type SpringStore<T> = ReadonlyStore<T> & {
 	velocity$: ReadonlyStore<T>;
 	/** The speed derived from the velocity using Pythagoras' Theorem. */
 	speed$: ReadonlyStore<number>;
-	/** Stop the simulation, even if it was paused, and set the store value to the current target. */
-	skip(): Promise<void>;
+	/**
+	 * Stop the simulation, even if it was paused, and set the store value to the current target.
+	 *
+	 * If a `target` argument is provided, it's assigned to `target$` before the skip happens.
+	 * Calling `spring.skip(somewhere)` is roughly equivalent to:
+	 * ```ts
+	 * spring.target$.set(somewhere);
+	 * spring.skip();
+	 * ```
+	 * but, when the spring is currently idle, the snap is performed synchronously without
+	 * waiting for an animation frame, so subscribers never observe a transient running frame.
+	 */
+	skip(target?: T): Promise<void>;
 	/**
 	 * Pause the simulation.
 	 * @throws {SpringStoreSkipError} if `.skip()` is called while the simulation is pausing or paused.
@@ -396,10 +407,16 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 	const current$ = makeStore(value);
 	const target$ = makeStore(value);
 	let firstTarget = true;
+	// Set by the `skip(target)` fast-path so the subscriber below updates
+	// `targetValue` without spawning a follow() that we'd then have to wait out.
+	let suppressFollow = false;
 	target$.subscribe((target) => {
 		targetValue = valueOps.fromUser(target as WidenedT);
 		if (firstTarget) {
 			firstTarget = false;
+			return;
+		}
+		if (suppressFollow) {
 			return;
 		}
 		stuckWindowAccDt = 0;
@@ -449,6 +466,12 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 	let remainingDelta = valueOps.zero();
 	const dt = config?.dt || 1 / 300;
 	const maxDt = config?.maxDt ?? 1 / 24;
+
+	// Set by the `skip(target)` path when it has already snapped value and
+	// velocity synchronously. Any pending loop iterations should run to
+	// completion (so the loop exits cleanly) but must not re-emit, otherwise
+	// subscribers would observe stale frames after the synchronous snap.
+	let suppressLoopEmits = false;
 
 	// Rolling-window envelope of |remainingDelta| used to detect
 	// non-convergence (e.g. damping <= 0 producing perpetual oscillation).
@@ -544,10 +567,13 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 						break;
 				}
 
-				current$.set(valueOps.toUser(interpolatedState.value));
-				velocityInternal$.set(interpolatedState.velocity);
+				if (!suppressLoopEmits) {
+					current$.set(valueOps.toUser(interpolatedState.value));
+					velocityInternal$.set(interpolatedState.velocity);
+				}
 			}
 		} finally {
+			suppressLoopEmits = false;
 			state$.set('idle');
 		}
 	}
@@ -617,8 +643,31 @@ export function makeSpringStore<T extends number | number[] | Record<string, num
 		resume() {
 			resolveResumePromise();
 		},
-		async skip() {
+		async skip(target?: WidenedT) {
+			const hasTarget = arguments.length > 0;
 			const state = state$.content();
+
+			if (hasTarget) {
+				// Update the public target store without spawning a new follow().
+				suppressFollow = true;
+				try {
+					target$.set(target as WidenedT);
+				} finally {
+					suppressFollow = false;
+				}
+				// Snap value and velocity synchronously so subscribers see the
+				// final value immediately, with no animation-frame delay.
+				physicsState = skipToTarget();
+				interpolatedState = physicsState;
+				current$.set(valueOps.toUser(interpolatedState.value));
+				velocityInternal$.set(interpolatedState.velocity);
+				// If a follow loop is in flight, suppress its remaining emits
+				// so the synchronous snap above is the only update subscribers see.
+				if (state !== 'idle') {
+					suppressLoopEmits = true;
+				}
+			}
+
 			if ((state === 'running' || state === 'pausing' || state === 'paused') && idlePromise) {
 				state$.set('skipping');
 				const skipError = new SpringStoreSkipError();

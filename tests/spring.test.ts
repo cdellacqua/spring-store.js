@@ -415,6 +415,80 @@ describe('spring store', () => {
 		expect(spring$.content()).to.eq(1);
 		expect(allValues.length).to.be.greaterThan(10);
 	});
+	it('skips to a new target when idle without entering the running state', async () => {
+		const spring$ = makeSpringStore(0);
+		const states: SpringStoreState[] = [];
+		spring$.state$.subscribe((state) => states.push(state));
+		const values: number[] = [];
+		spring$.subscribe((v) => values.push(v));
+		expect(spring$.content()).to.eq(0);
+
+		await spring$.skip(1);
+
+		expect(spring$.content()).to.eq(1);
+		expect(spring$.target$.content()).to.eq(1);
+		expect(spring$.velocity$.content()).to.eq(0);
+		expect(states).to.eqls(['idle']);
+		expect(values).to.eqls([0, 1]);
+	});
+	it('skips synchronously when idle so no animation frame is awaited', () => {
+		const spring$ = makeSpringStore(0);
+		let resolved = false;
+		void spring$.skip(5).then(() => {
+			resolved = true;
+		});
+		expect(spring$.content()).to.eq(5);
+		expect(spring$.target$.content()).to.eq(5);
+		return Promise.resolve().then(() => {
+			expect(resolved).to.eq(true);
+		});
+	});
+	it('skips to a new target while running', async () => {
+		const spring$ = makeSpringStore(0);
+		const states: SpringStoreState[] = [];
+		spring$.state$.subscribe((state) => states.push(state));
+		spring$.target$.set(1);
+		await spring$.skip(2);
+		expect(spring$.content()).to.eq(2);
+		expect(spring$.target$.content()).to.eq(2);
+		expect(states).to.eqls(['idle', 'running', 'skipping', 'idle']);
+	});
+	it('snaps synchronously while running and emits no further frames', async () => {
+		const spring$ = makeSpringStore(0);
+		const values: number[] = [];
+		spring$.subscribe((v) => values.push(v));
+		spring$.target$.set(1);
+		// Wait for at least one running frame so the loop is mid-flight.
+		await new Promise<void>((resolve) => {
+			const unsub = spring$.subscribe((v) => {
+				if (v !== 0) {
+					unsub();
+					resolve();
+				}
+			});
+		});
+		const valuesBeforeSkip = values.slice();
+		const skipPromise = spring$.skip(2);
+		// Synchronous snap — value and target are updated before the await.
+		expect(spring$.content()).to.eq(2);
+		expect(spring$.target$.content()).to.eq(2);
+		// And the only new emission is the snap itself.
+		expect(values.length).to.eq(valuesBeforeSkip.length + 1);
+		expect(values.at(-1)).to.eq(2);
+		await skipPromise;
+		// No further emissions from the loop after the synchronous snap.
+		expect(values.at(-1)).to.eq(2);
+		expect(spring$.content()).to.eq(2);
+	});
+	it('skips to a new target after pausing', async () => {
+		const spring$ = makeSpringStore(0);
+		spring$.target$.set(1);
+		await spring$.pause();
+		expect(spring$.content()).to.not.eq(1);
+		await spring$.skip(7);
+		expect(spring$.content()).to.eq(7);
+		expect(spring$.target$.content()).to.eq(7);
+	});
 	it('reaches the same value regardless of target key order', async () => {
 		const spring$ = makeSpringStore({a: 0, b: 0});
 		spring$.target$.set({a: 1, b: 2});
