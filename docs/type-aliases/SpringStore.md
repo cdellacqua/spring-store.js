@@ -150,9 +150,24 @@ Resume a paused simulation.
 
 ### skip()
 
-> **skip**(): `Promise`\<`void`\>
+> **skip**(`target?`): `Promise`\<`void`\>
 
 Stop the simulation, even if it was paused, and set the store value to the current target.
+
+If a `target` argument is provided, it's assigned to `target$` before the skip happens.
+Calling `spring.skip(somewhere)` is roughly equivalent to:
+```ts
+spring.target$.set(somewhere);
+spring.skip();
+```
+but, when the spring is currently idle, the snap is performed synchronously without
+waiting for an animation frame, so subscribers never observe a transient running frame.
+
+#### Parameters
+
+##### target?
+
+`T`
 
 #### Returns
 

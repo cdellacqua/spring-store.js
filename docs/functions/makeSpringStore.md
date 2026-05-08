@@ -8,7 +8,7 @@
 
 > **makeSpringStore**\<`T`\>(`value`, `config?`): [`SpringStore`](../type-aliases/SpringStore.md)\<`T` *extends* `number` ? `number` : `T`\>
 
-Defined in: [src/lib/spring.ts:238](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L238)
+Defined in: [src/lib/spring.ts:249](https://github.com/cdellacqua/spring-store.js/blob/main/src/lib/spring.ts#L249)
 
 Create a spring store.
 A spring store is a special kind of store that performs a physics simulation
